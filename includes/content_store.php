@@ -32,7 +32,7 @@ function collect_record(array $fields, array $source): array
     foreach ($fields as $name => $field) {
         $type = $field['type'] ?? 'text';
         $label = $field['label'] ?? $name;
-        if ($type === 'lines') {
+        if (in_array($type, ['gallery', 'departures'], true) || (in_array($type, ['lines', 'blocks'], true) && empty($field['column']))) {
             continue;
         }
         if ($type === 'checkbox') {
@@ -197,12 +197,20 @@ function package_record(int $id): ?array
             return (string) ($row['feature_text_' . $lang] ?? '');
         }, $features));
     }
+    $package['gallery'] = implode("\n", gallery_list($package));
+    $package['departures'] = departures_for_admin($id);
     return $package;
 }
 
 function save_package(array $source, int $id): int
 {
     $record = collect_record(package_fields(), $source);
+    if (!room_prices($record) && trim((string) $record['price']) === '') {
+        throw new RuntimeException('أدخل سعر غرفة واحدة على الأقل، أو نص السعر في البطاقة.');
+    }
+    $slug = $record['slug'] !== '' ? $record['slug'] : slugify($record['title_en'] ?: $record['title_fr']);
+    $record['slug'] = unique_package_slug($slug !== '' ? $slug : 'program', $id);
+    $record['gallery'] = collect_gallery($source);
     $arabic = split_lines((string) ($source['features'] ?? ''));
     $translated = [];
     foreach (extra_languages() as $lang) {
@@ -222,6 +230,7 @@ function save_package(array $source, int $id): int
             $insert->execute([$id, str_limit($line, 255), str_limit($translated['fr'][$index] ?? '', 255), str_limit($translated['en'][$index] ?? '', 255), $position * 10]);
             $position++;
         }
+        save_departures($id, $source);
         db()->commit();
     } catch (Throwable $e) {
         db()->rollBack();

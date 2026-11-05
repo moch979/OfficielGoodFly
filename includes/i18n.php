@@ -118,6 +118,10 @@ function t(string $key): string
         'language' => ['ar' => 'اللغة', 'fr' => 'Langue', 'en' => 'Language'],
         'continue_whatsapp' => ['ar' => 'إرسال التفاصيل عبر واتساب', 'fr' => 'Envoyer les détails sur WhatsApp', 'en' => 'Send details on WhatsApp'],
         'sending' => ['ar' => 'جارٍ الإرسال...', 'fr' => 'Envoi en cours...', 'en' => 'Sending...'],
+        'not_found_title' => ['ar' => 'البرنامج غير موجود', 'fr' => 'Programme introuvable', 'en' => 'Package not found'],
+        'not_found_text' => ['ar' => 'ربما انتهى هذا البرنامج أو تغيّر رابطه. تصفح برامجنا الحالية.', 'fr' => 'Ce programme est peut-être terminé ou son lien a changé. Découvrez nos programmes actuels.', 'en' => 'This package may have ended or its link changed. Browse our current packages.'],
+        'departure_invalid' => ['ar' => 'موعد الانطلاق المختار غير متاح.', 'fr' => 'La date de départ choisie n’est pas disponible.', 'en' => 'The selected departure is not available.'],
+        'seats_not_enough' => ['ar' => 'المقاعد المتبقية في هذا الموعد أقل من عدد المسافرين.', 'fr' => 'Il reste moins de places que de voyageurs pour cette date.', 'en' => 'There are fewer seats left on this departure than travellers.'],
     ];
     $lang = current_lang();
     return $strings[$key][$lang] ?? ($strings[$key]['ar'] ?? $key);

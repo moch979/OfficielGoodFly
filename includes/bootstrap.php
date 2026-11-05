@@ -10,6 +10,7 @@ require_once __DIR__ . '/security.php';
 require_once __DIR__ . '/images.php';
 require_once __DIR__ . '/migrations.php';
 require_once __DIR__ . '/design.php';
+require_once __DIR__ . '/programs.php';
 
 register_error_handling();
 send_security_headers();

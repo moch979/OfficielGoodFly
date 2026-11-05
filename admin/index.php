@@ -10,7 +10,7 @@ $counts = [
     'المشتركون' => (int) db()->query('SELECT COUNT(*) FROM subscribers')->fetchColumn(),
 ];
 $latest = rows('SELECT id, full_name, phone, trip_type, status, lang, created_at FROM bookings ORDER BY id DESC LIMIT 6');
-$labels = ['new' => 'جديد', 'contacted' => 'تم التواصل', 'closed' => 'مغلق'];
+$labels = booking_status_labels();
 
 /** Placeholder values shipped with the site that must be replaced before launch. */
 $placeholders = [

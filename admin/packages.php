@@ -17,6 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'save') {
             $id = save_package($_POST, $id);
             flash_set('ok', 'تم حفظ البرنامج.');
+        } elseif ($action === 'duplicate') {
+            $newId = duplicate_package($id);
+            flash_set('ok', 'أُنشئت نسخة مخفية من البرنامج. عدّلها ثم فعّل «ظاهر في الموقع». المواعيد لا تُنسخ.');
+            redirect('packages.php?edit=' . $newId);
         }
     } catch (Throwable $e) {
         flash_set('err', $e->getMessage());
@@ -39,7 +43,14 @@ if ($editId || $isNew) {
         admin_footer();
         exit;
     }
-    echo '<p class="intro">كل حقل في بطاقة البرنامج بالعربية والفرنسية والإنجليزية. اختر لغة التحرير من الشريط.</p>';
+    echo '<p class="intro">البطاقة في الصفحة الرئيسية، وصفحة مستقلة للبرنامج فيها اليوميات والأسعار والمواعيد. كل نص بالعربية والفرنسية والإنجليزية؛ اختر لغة التحرير من الشريط.</p>';
+    if (!empty($package['slug'])) {
+        echo '<p class="actions">';
+        foreach (languages() as $code => $info) {
+            echo '<a class="btn small ghost" target="_blank" rel="noopener" href="' . h(program_url($package['slug'], $code)) . '">معاينة الصفحة: ' . h($info['name']) . '</a>';
+        }
+        echo '</p>';
+    }
     echo '<form class="card" method="post" enctype="multipart/form-data">' . csrf_field();
     echo '<input type="hidden" name="action" value="save"><input type="hidden" name="id" value="' . (int) ($package['id'] ?? 0) . '">';
     echo edit_lang_switch();
@@ -54,7 +65,8 @@ if ($editId || $isNew) {
 echo '<p class="intro">أضف أو عدّل أو أخفِ أي برنامج. السعر نص حر لكل لغة.</p>';
 echo '<p><a class="btn" href="packages.php?new=1">إضافة برنامج</a></p>';
 $list = rows('SELECT p.*, c.label AS category_label FROM packages p LEFT JOIN package_categories c ON c.slug = p.category ORDER BY p.sort_order, p.id');
-echo '<div class="card" style="overflow:auto"><table><thead><tr><th>الصورة</th><th>البرنامج</th><th>السعر</th><th>التصنيف</th><th>الحالة</th><th>الترتيب</th><th></th></tr></thead><tbody>';
+$departures = upcoming_departures(array_column($list, 'id'));
+echo '<div class="card" style="overflow:auto"><table><thead><tr><th>الصورة</th><th>البرنامج</th><th>السعر</th><th>التصنيف</th><th>المواعيد القادمة</th><th>الحالة</th><th>الترتيب</th><th></th></tr></thead><tbody>';
 foreach ($list as $row) {
     $missing = [];
     foreach (extra_languages() as $lang) {
@@ -64,15 +76,20 @@ foreach ($list as $row) {
     }
     echo '<tr><td><img class="thumb" alt="" src="' . h(asset_url($row['image'])) . '"></td>';
     echo '<td>' . h($row['title']) . ($missing ? '<div class="missing">ينقصه: ' . h(implode('، ', $missing)) . '</div>' : '') . '</td>';
-    echo '<td>' . h($row['price']) . '</td><td>' . h($row['category_label'] ?? $row['category']) . '</td>';
+    $upcoming = $departures[(int) $row['id']] ?? [];
+    $seats = array_sum(array_column($upcoming, 'seats'));
+    echo '<td>' . h(display_price($row)) . '</td><td>' . h($row['category_label'] ?? $row['category']) . '</td>';
+    echo '<td>' . ($upcoming ? count($upcoming) . ' موعد، ' . $seats . ' مقعد' : '<span class="hint">لا يوجد</span>') . '</td>';
     echo '<td>' . ((int) $row['is_active'] === 1 ? 'ظاهر' : 'مخفي') . '</td>';
     echo '<td class="actions">' . move_buttons((int) $row['id']) . '</td><td class="actions">';
     echo '<a class="btn small secondary" href="packages.php?edit=' . (int) $row['id'] . '">تعديل</a>';
+    echo '<a class="btn small ghost" target="_blank" rel="noopener" href="' . h(program_url((string) $row['slug'])) . '">الصفحة</a>';
+    echo '<form method="post">' . csrf_field() . '<input type="hidden" name="action" value="duplicate"><input type="hidden" name="id" value="' . (int) $row['id'] . '"><button class="btn small ghost" type="submit">نسخ</button></form>';
     echo delete_button((int) $row['id'], 'حذف البرنامج؟');
     echo '</td></tr>';
 }
 if (!$list) {
-    echo '<tr><td colspan="7">لا توجد برامج.</td></tr>';
+    echo '<tr><td colspan="8">لا توجد برامج.</td></tr>';
 }
 echo '</tbody></table></div>';
 admin_footer();

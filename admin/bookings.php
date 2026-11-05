@@ -6,13 +6,21 @@ require __DIR__ . '/_layout.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
     if (($_POST['action'] ?? '') === 'delete') {
-        db()->prepare('DELETE FROM bookings WHERE id = ?')->execute([(int) ($_POST['id'] ?? 0)]);
-        flash_set('ok', 'تم حذف الطلب.');
+        $id = (int) ($_POST['id'] ?? 0);
+        $statement = db()->prepare('SELECT departure_id, travelers, seats_deducted FROM bookings WHERE id = ?');
+        $statement->execute([$id]);
+        $deleted = $statement->fetch();
+        if ($deleted && (int) $deleted['seats_deducted'] === 1 && (int) $deleted['departure_id'] > 0) {
+            db()->prepare('UPDATE package_departures SET seats_left = seats_left + ? WHERE id = ?')->execute([(int) $deleted['travelers'], (int) $deleted['departure_id']]);
+        }
+        db()->prepare('DELETE FROM bookings WHERE id = ?')->execute([$id]);
+        flash_set('ok', 'تم حذف الطلب.' . ($deleted && (int) $deleted['seats_deducted'] === 1 ? ' أُعيدت مقاعده إلى الموعد.' : ''));
     }
     redirect('bookings.php?' . http_build_query(array_intersect_key($_GET, array_flip(['status', 'q', 'page']))));
 }
 
-$labels = ['all' => 'الكل', 'new' => 'جديد', 'contacted' => 'تم التواصل', 'closed' => 'مغلق'];
+$labels = ['all' => 'الكل'] + booking_status_labels();
+$roomNames = ['double' => 'ثنائية', 'triple' => 'ثلاثية', 'quad' => 'رباعية'];
 $status = (string) ($_GET['status'] ?? 'all');
 if (!isset($labels[$status])) {
     $status = 'all';
@@ -38,9 +46,9 @@ if (isset($_GET['export'])) {
     header('Content-Disposition: attachment; filename="goodfly-bookings-' . date('Y-m-d') . '.csv"');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF");
-    fputcsv($out, ['#', 'الاسم', 'الهاتف', 'نوع الرحلة', 'البرنامج', 'الأفراد', 'تاريخ السفر', 'الملاحظات', 'اللغة', 'الحالة', 'وقت الإرسال']);
+    fputcsv($out, ['#', 'الاسم', 'الهاتف', 'نوع الرحلة', 'البرنامج', 'الأفراد', 'تاريخ السفر', 'موعد الانطلاق', 'نوع الغرفة', 'الملاحظات', 'اللغة', 'الحالة', 'وقت الإرسال']);
     foreach ($list as $row) {
-        $cells = [$row['id'], $row['full_name'], $row['phone'], $row['trip_type'], $row['package_title'], $row['travelers'], $row['travel_date'], $row['notes'], $row['lang'], $labels[$row['status']] ?? $row['status'], $row['created_at']];
+        $cells = [$row['id'], $row['full_name'], $row['phone'], $row['trip_type'], $row['package_title'], $row['travelers'], $row['travel_date'], $row['departure_date'], $roomNames[$row['room_type']] ?? '', $row['notes'], $row['lang'], $labels[$row['status']] ?? $row['status'], $row['created_at']];
         fputcsv($out, array_map(static function ($cell) {
             $cell = (string) $cell;
             return preg_match('/^[=+\-@\t\r]/', $cell) ? "'" . $cell : $cell;
@@ -78,8 +86,10 @@ echo '<div class="card" style="overflow:auto"><p class="hint">' . $total . ' ط�
 foreach ($list as $row) {
     $wa = 'https://wa.me/' . preg_replace('/\D+/', '', $row['phone']);
     echo '<tr><td>' . (int) $row['id'] . '</td><td>' . h($row['full_name']) . '</td>';
-    echo '<td dir="ltr"><a href="' . h($wa) . '" target="_blank" rel="noopener" title="واتساب">' . h($row['phone']) . '</a></td><td>' . h($row['trip_type']) . '</td>';
-    echo '<td>' . h($row['travelers']) . '</td><td>' . h($row['travel_date']) . '</td><td>' . h(strtoupper($row['lang'])) . '</td><td>' . h($labels[$row['status']] ?? $row['status']) . '</td><td>' . h($row['created_at']) . '</td>';
+    $trip = $row['package_title'] !== '' ? $row['package_title'] : $row['trip_type'];
+    $room = $roomNames[$row['room_type']] ?? '';
+    echo '<td dir="ltr"><a href="' . h($wa) . '" target="_blank" rel="noopener" title="واتساب">' . h($row['phone']) . '</a></td><td>' . h(mb_strimwidth($trip, 0, 50, '…')) . ($room !== '' ? '<div class="hint">غرفة ' . h($room) . '</div>' : '') . '</td>';
+    echo '<td>' . h($row['travelers']) . '</td><td dir="ltr">' . h($row['departure_date'] !== '' ? $row['departure_date'] : $row['travel_date']) . '</td><td>' . h(strtoupper($row['lang'])) . '</td><td>' . h($labels[$row['status']] ?? $row['status']) . '</td><td>' . h($row['created_at']) . '</td>';
     echo '<td class="actions"><a class="btn small" href="booking.php?id=' . (int) $row['id'] . '">تفاصيل</a>' . delete_button((int) $row['id'], 'حذف الطلب نهائياً؟') . '</td></tr>';
 }
 if (!$list) {

@@ -49,20 +49,63 @@ if ($date !== '') {
 }
 $travelers = max(1, min(99, $travelers));
 
-$statement = db()->prepare('INSERT INTO bookings (full_name, phone, trip_type, travelers, travel_date, notes, package_title, lang) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-$statement->execute([$name, $phone, $tripType, $travelers, $date, $notes, $packageTitle, current_lang()]);
+$packageId = null;
+$departureId = null;
+$departureDate = '';
+$roomType = '';
+$roomPrice = 0;
+$requestedPackage = (int) ($payload['packageId'] ?? 0);
+if ($requestedPackage > 0) {
+    $statement = db()->prepare('SELECT * FROM packages WHERE id = ? AND is_active = 1');
+    $statement->execute([$requestedPackage]);
+    $package = $statement->fetch();
+    if ($package) {
+        $packageId = (int) $package['id'];
+        $packageTitle = $package['title'];
+
+        $requestedRoom = $text('roomType');
+        $prices = room_prices($package);
+        if ($requestedRoom !== '' && isset($prices[$requestedRoom])) {
+            $roomType = $requestedRoom;
+            $roomPrice = $prices[$requestedRoom];
+        }
+
+        $requestedDeparture = (int) ($payload['departureId'] ?? 0);
+        if ($requestedDeparture > 0) {
+            $statement = db()->prepare('SELECT * FROM package_departures WHERE id = ? AND package_id = ? AND depart_date >= CURDATE()');
+            $statement->execute([$requestedDeparture, $packageId]);
+            $departure = $statement->fetch();
+            if (!$departure) {
+                json_response(['ok' => false, 'message' => t('departure_invalid')], 422);
+            }
+            if ((int) $departure['seats_left'] < $travelers) {
+                json_response(['ok' => false, 'message' => t('seats_not_enough')], 422);
+            }
+            $departureId = (int) $departure['id'];
+            $departureDate = $departure['depart_date'] . ($departure['return_date'] ? ' → ' . $departure['return_date'] : '');
+            $date = $departure['depart_date'];
+        }
+    }
+}
+
+$statement = db()->prepare('INSERT INTO bookings (full_name, phone, trip_type, travelers, travel_date, notes, package_title, lang, package_id, departure_id, departure_date, room_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+$statement->execute([$name, $phone, $tripType, $travelers, $date, $notes, $packageTitle, current_lang(), $packageId, $departureId, $departureDate, $roomType]);
 $bookingId = (int) db()->lastInsertId();
 
+$roomNames = ['double' => 'ثنائية', 'triple' => 'ثلاثية', 'quad' => 'رباعية'];
 $lines = [
     s('wa_booking_intro', 'طلب جديد من موقع Good Fly Travel:'),
     'الاسم: ' . $name,
     'الهاتف: ' . $phone,
     'الرحلة: ' . $tripType,
     'الأفراد: ' . $travelers,
-    'التاريخ: ' . ($date !== '' ? $date : '-'),
+    'التاريخ: ' . ($departureDate !== '' ? $departureDate : ($date !== '' ? $date : '-')),
 ];
 if ($packageTitle !== '') {
     $lines[] = 'البرنامج: ' . $packageTitle;
+}
+if ($roomType !== '') {
+    $lines[] = 'الغرفة: ' . $roomNames[$roomType] . ' — التقدير: ' . number_format($roomPrice * $travelers) . ' درهم';
 }
 if ($notes !== '') {
     $lines[] = 'ملاحظات: ' . $notes;

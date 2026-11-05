@@ -337,11 +337,37 @@ const UPLOAD_MAX_WIDTH = 2000;
 
 function save_upload(string $inputName): ?string
 {
-    if (empty($_FILES[$inputName]) || !is_array($_FILES[$inputName])) {
+    if (empty($_FILES[$inputName]) || !is_array($_FILES[$inputName]) || is_array($_FILES[$inputName]['name'] ?? null)) {
         return null;
     }
+    return save_uploaded_file($_FILES[$inputName]);
+}
 
-    $file = $_FILES[$inputName];
+/** Saves every file of a multiple upload input such as name="file_gallery[]". */
+function save_uploads(string $inputName): array
+{
+    $files = $_FILES[$inputName] ?? null;
+    if (!is_array($files) || !is_array($files['name'] ?? null)) {
+        return [];
+    }
+    $saved = [];
+    foreach (array_keys($files['name']) as $index) {
+        $path = save_uploaded_file([
+            'name' => $files['name'][$index],
+            'type' => $files['type'][$index] ?? '',
+            'tmp_name' => $files['tmp_name'][$index] ?? '',
+            'error' => $files['error'][$index] ?? UPLOAD_ERR_NO_FILE,
+            'size' => $files['size'][$index] ?? 0,
+        ]);
+        if ($path !== null) {
+            $saved[] = $path;
+        }
+    }
+    return $saved;
+}
+
+function save_uploaded_file(array $file): ?string
+{
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE || ($file['name'] ?? '') === '') {
         return null;
     }
@@ -418,4 +444,18 @@ function client_ip(): string
 function str_limit(string $value, int $max): string
 {
     return mb_substr($value, 0, $max);
+}
+
+/** Latin URL fragment: "Good Fly – Umrah 2027" → "good-fly-umrah-2027". */
+function slugify(string $text, int $max = 80): string
+{
+    $text = strtolower(trim($text));
+    if (function_exists('iconv')) {
+        $converted = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        if ($converted !== false) {
+            $text = strtolower($converted);
+        }
+    }
+    $text = preg_replace('/[^a-z0-9]+/', '-', $text) ?? '';
+    return trim(substr(trim($text, '-'), 0, $max), '-');
 }

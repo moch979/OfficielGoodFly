@@ -46,6 +46,7 @@ function public_fields(array $fields): array
             'hint' => $field['hint'] ?? '',
             'required' => !empty($field['required']),
             'translatable' => !empty($field['translatable']),
+            'section' => $field['section'] ?? '',
             'options' => (object) ($field['options'] ?? []),
         ];
     }
@@ -59,6 +60,10 @@ function public_values(array $record, array $fields): array
         $type = $field['type'] ?? 'text';
         if ($type === 'checkbox') {
             $values[$name] = (int) ($record[$name] ?? 0) === 1 ? 1 : 0;
+            continue;
+        }
+        if ($type === 'departures') {
+            $values[$name] = array_values((array) ($record[$name] ?? []));
             continue;
         }
         $values[$name] = (string) ($record[$name] ?? '');
@@ -125,7 +130,7 @@ function packages_payload(): array
     $items = [];
     foreach (rows('SELECT id FROM packages ORDER BY sort_order, id') as $row) {
         $package = package_record((int) $row['id']);
-        $items[] = ['id' => (int) $package['id'], 'summary' => $package['title'], 'active' => (int) $package['is_active'] === 1, 'values' => public_values($package, $fields)];
+        $items[] = ['id' => (int) $package['id'], 'summary' => $package['title'], 'active' => (int) $package['is_active'] === 1, 'values' => public_values($package, $fields), 'url' => program_url((string) $package['slug'])];
     }
     return ['kind' => 'packages', 'type' => 'packages', 'title' => 'بطاقات البرامج', 'intro' => 'كل برنامج بطاقة في الموقع. التصنيفات في القائمة التالية.', 'fields' => public_fields($fields), 'items' => $items];
 }
@@ -237,6 +242,13 @@ try {
                 db()->prepare('DELETE FROM `' . item_table($kind, $type) . '` WHERE id = ?')->execute([$id]);
             }
             json_response(['ok' => true, 'message' => 'تم الحذف.']);
+            break;
+        case 'duplicate_item':
+            if ($kind !== 'packages') {
+                designer_fail('النسخ متاح للبرامج فقط.');
+            }
+            duplicate_package($id);
+            json_response(['ok' => true, 'message' => 'أُنشئت نسخة مخفية من البرنامج في آخر القائمة. عدّلها ثم فعّل «ظاهر في الموقع».']);
             break;
         case 'move_item':
             move_record(item_table($kind, $type), $id, (string) ($_POST['direction'] ?? '') === 'up' ? 'up' : 'down');

@@ -205,7 +205,7 @@ function designer_catalog(): array
         'hero' => ['label' => 'الواجهة', 'groups' => ['hero'], 'collections' => ['hero', 'filters']],
         'stats' => ['label' => 'أرقام الثقة', 'groups' => [], 'collections' => ['stats']],
         'about' => ['label' => 'عن الوكالة', 'groups' => ['about'], 'collections' => ['about']],
-        'packages' => ['label' => 'البرامج', 'groups' => ['packages'], 'collections' => ['categories'], 'special' => 'packages'],
+        'packages' => ['label' => 'البرامج', 'groups' => ['packages', 'program'], 'collections' => ['categories'], 'special' => 'packages'],
         'services' => ['label' => 'الخدمات', 'groups' => ['services'], 'collections' => ['services']],
         'calculator' => ['label' => 'الحاسبة', 'groups' => ['calculator'], 'collections' => ['tiers']],
         'cities' => ['label' => 'مكة والمدينة', 'groups' => ['cities'], 'collections' => [], 'special' => 'cities'],

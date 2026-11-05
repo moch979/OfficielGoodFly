@@ -18,6 +18,16 @@ if (($_GET['file'] ?? '') === 'sitemap') {
         }
         echo '  </url>', "\n";
     }
+    foreach (rows('SELECT slug FROM packages WHERE is_active = 1 AND slug IS NOT NULL ORDER BY sort_order, id') as $package) {
+        foreach (languages() as $code => $info) {
+            echo '  <url>', "\n";
+            echo '    <loc>', h(program_absolute_url($package['slug'], $code)), '</loc>', "\n";
+            foreach (languages() as $alt => $altInfo) {
+                echo '    <xhtml:link rel="alternate" hreflang="', h($alt), '" href="', h(program_absolute_url($package['slug'], $alt)), '"/>', "\n";
+            }
+            echo '  </url>', "\n";
+        }
+    }
     echo '</urlset>', "\n";
     exit;
 }

@@ -173,18 +173,31 @@ function package_fields(): array
         $categories[$category['slug']] = $category['label'] . ' (' . $category['slug'] . ')';
     }
     return [
-        'title' => ['label' => 'عنوان البرنامج', 'type' => 'text', 'required' => true, 'translatable' => true, 'max' => 255],
+        'title' => ['label' => 'عنوان البرنامج', 'type' => 'text', 'required' => true, 'translatable' => true, 'max' => 255, 'section' => 'البطاقة الأساسية'],
         'category' => ['label' => 'التصنيف', 'type' => 'select', 'required' => true, 'options' => $categories, 'hint' => 'أضف تصنيفاً جديداً من «تصنيفات البرامج» إن لم تجده.'],
         'category_badge' => ['label' => 'الشارة على الصورة', 'type' => 'text', 'required' => true, 'translatable' => true, 'max' => 160],
         'hotel' => ['label' => 'اسم الفندق', 'type' => 'text', 'required' => true, 'translatable' => true, 'max' => 255],
         'hotel_class' => ['label' => 'فئة الفندق للبحث', 'type' => 'text', 'max' => 80, 'hint' => 'نفس «القيمة الداخلية» لخيار الفندق في البحث، مثل 5star-view'],
         'distance' => ['label' => 'الموقع أو المسافة', 'type' => 'text', 'translatable' => true, 'max' => 255],
-        'duration_days' => ['label' => 'مدة الإقامة للبحث', 'type' => 'text', 'max' => 40, 'hint' => 'رقم الأيام فقط، مثل 7 أو 10 أو 14'],
+        'duration_days' => ['label' => 'مدة الإقامة بالأيام', 'type' => 'text', 'max' => 40, 'hint' => 'رقم الأيام فقط، مثل 7 أو 10 أو 14 — يُستخدم في البحث'],
         'description' => ['label' => 'الوصف', 'type' => 'textarea', 'required' => true, 'translatable' => true, 'max' => 3000],
-        'price' => ['label' => 'السعر كما يظهر للزائر', 'type' => 'text', 'required' => true, 'translatable' => true, 'max' => 80, 'hint' => 'مثل 38,000 درهم'],
-        'image' => ['label' => 'الصورة', 'type' => 'image', 'required' => true],
-        'features' => ['label' => 'المزايا، سطر لكل ميزة', 'type' => 'lines', 'translatable' => true, 'hint' => 'في الفرنسية والإنجليزية اكتب الأسطر بنفس ترتيب العربية'],
-        'sort_order' => ['label' => 'الترتيب', 'type' => 'number'],
+        'image' => ['label' => 'الصورة الرئيسية', 'type' => 'image', 'required' => true],
+        'features' => ['label' => 'المزايا في البطاقة، سطر لكل ميزة', 'type' => 'lines', 'translatable' => true, 'hint' => 'في الفرنسية والإنجليزية اكتب الأسطر بنفس ترتيب العربية'],
+
+        'price_double' => ['label' => 'سعر الشخص في غرفة ثنائية', 'type' => 'number', 'min' => 0, 'hint' => 'بالدرهم، 0 يعني غير متاح', 'section' => 'الأسعار'],
+        'price_triple' => ['label' => 'سعر الشخص في غرفة ثلاثية', 'type' => 'number', 'min' => 0],
+        'price_quad' => ['label' => 'سعر الشخص في غرفة رباعية', 'type' => 'number', 'min' => 0],
+        'price' => ['label' => 'نص السعر في البطاقة (اختياري)', 'type' => 'text', 'translatable' => true, 'max' => 80, 'hint' => 'اتركه فارغاً ليظهر «ابتداءً من» أقل سعر غرفة تلقائياً'],
+
+        'departures' => ['label' => 'مواعيد الانطلاق', 'type' => 'departures', 'hint' => 'المواعيد الماضية تختفي من الموقع تلقائياً. الموعد بصفر مقاعد يظهر «مكتمل».', 'section' => 'المواعيد'],
+
+        'itinerary' => ['label' => 'البرنامج يوماً بيوم', 'type' => 'blocks', 'column' => true, 'translatable' => true, 'max' => 20000, 'hint' => 'لكل يوم: السطر الأول عنوان اليوم، والأسطر التالية وصفه، وسطر فارغ بين الأيام. اكتب الأيام بنفس الترتيب في كل لغة.', 'section' => 'صفحة البرنامج'],
+        'includes' => ['label' => 'يشمل البرنامج، سطر لكل بند', 'type' => 'lines', 'column' => true, 'translatable' => true, 'max' => 5000],
+        'excludes' => ['label' => 'لا يشمل، سطر لكل بند', 'type' => 'lines', 'column' => true, 'translatable' => true, 'max' => 5000],
+        'gallery' => ['label' => 'معرض الصور', 'type' => 'gallery', 'hint' => 'مسار صورة في كل سطر. ارفع عدة صور دفعة واحدة، واحذف سطراً لإزالة صورته.'],
+        'slug' => ['label' => 'رابط الصفحة', 'type' => 'text', 'max' => 100, 'pattern' => '/^[a-z0-9\-]*$/', 'hint' => 'حروف إنجليزية صغيرة وأرقام وشرطة. اتركه فارغاً ليُنشأ من العنوان الإنجليزي.'],
+
+        'sort_order' => ['label' => 'الترتيب', 'type' => 'number', 'section' => 'العرض'],
         'is_active' => ['label' => 'ظاهر في الموقع', 'type' => 'checkbox'],
     ];
 }
@@ -220,6 +233,7 @@ function setting_groups(): array
         'guide' => 'دليل المناسك',
         'testimonials' => 'آراء العملاء',
         'footer' => 'التذييل',
+        'program' => 'صفحة البرنامج',
         'modal' => 'الحجز وواتساب',
         'visibility' => 'إظهار الأقسام',
         'design' => 'التصميم العام',

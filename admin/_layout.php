@@ -102,6 +102,9 @@ function admin_css(): string
         body[data-edit-lang="fr"] .lang-pane:not([data-lang="fr"]),
         body[data-edit-lang="en"] .lang-pane:not([data-lang="en"]){display:none}
         .missing{color:#8d2f2f;font-size:12px;font-weight:700}
+        .form-section{font-size:18px;margin:26px 0 4px;padding-top:14px;border-top:1px solid #dbe4f0}
+        .gallery-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+        .deps table td{padding:4px}.deps tr.past{opacity:.5}
         .checklist li{margin:6px 0}
         .pager{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
         .pager a,.pager span{padding:6px 10px;border-radius:8px;border:1px solid #dbe4f0;background:#fff;text-decoration:none;font-size:13px}
@@ -124,6 +127,22 @@ function admin_js(): string
                 b.addEventListener("click", function () { setLang(b.dataset.lang); });
             });
             if (document.querySelector(".langbar")) setLang(saved);
+            document.addEventListener("click", function (event) {
+                var add = event.target.closest(".dep-add");
+                if (add) {
+                    var body = add.parentNode.querySelector(".dep-rows");
+                    var template = body.lastElementChild.cloneNode(true);
+                    template.classList.remove("past");
+                    template.querySelectorAll("input").forEach(function (input) { input.value = input.type === "hidden" ? "0" : ""; });
+                    body.appendChild(template);
+                }
+                var remove = event.target.closest(".dep-remove");
+                if (remove) {
+                    var row = remove.closest("tr");
+                    if (row.parentNode.children.length > 1) row.remove();
+                    else row.querySelectorAll("input").forEach(function (input) { input.value = input.type === "hidden" ? "0" : ""; });
+                }
+            });
         })();
     ';
 }
@@ -177,8 +196,17 @@ function render_field(string $id, array $field, callable $nameFor, array $values
             echo '<div class="ref" dir="rtl">' . h(mb_strimwidth($arabic, 0, 400, '…')) . '</div>';
         }
         $name = h($nameFor($lang));
-        if (in_array($type, ['textarea', 'html', 'lines'], true)) {
-            echo '<textarea id="' . h($inputId) . '" name="' . $name . '" dir="' . $dir . '">' . h($value) . '</textarea>';
+        if ($type === 'gallery') {
+            echo '<textarea id="' . h($inputId) . '" name="' . $name . '" dir="ltr" style="min-height:90px">' . h($value) . '</textarea>';
+            echo '<input type="file" name="file_gallery[]" multiple accept="image/jpeg,image/png,image/webp,image/gif" style="margin-top:8px">';
+            echo '<div class="gallery-thumbs">';
+            foreach (array_filter(split_text_lines($value), 'strlen') as $path) {
+                echo '<img class="thumb" alt="" src="' . h(asset_url($path)) . '">';
+            }
+            echo '</div>';
+        } elseif (in_array($type, ['textarea', 'html', 'lines', 'blocks'], true)) {
+            $style = $type === 'blocks' ? ' style="min-height:260px"' : '';
+            echo '<textarea id="' . h($inputId) . '" name="' . $name . '" dir="' . $dir . '"' . $style . '>' . h($value) . '</textarea>';
         } elseif ($type === 'select') {
             echo '<select id="' . h($inputId) . '" name="' . $name . '">';
             foreach ($field['options'] ?? [] as $optionValue => $optionLabel) {
@@ -213,8 +241,31 @@ function render_field(string $id, array $field, callable $nameFor, array $values
 }
 
 /** Renders a field bound to a database record (collections, packages, cities). */
+function render_departures(array $departures, string $hint): void
+{
+    echo '<label>مواعيد الانطلاق</label><div class="deps"><table><thead><tr><th>تاريخ الانطلاق</th><th>تاريخ العودة</th><th>المقاعد المتبقية</th><th></th></tr></thead><tbody class="dep-rows">';
+    $rows = $departures ?: [];
+    $rows[] = ['id' => 0, 'depart_date' => '', 'return_date' => '', 'seats_left' => ''];
+    foreach ($rows as $row) {
+        $past = $row['depart_date'] !== '' && $row['depart_date'] < date('Y-m-d');
+        echo '<tr' . ($past ? ' class="past" title="موعد مضى"' : '') . '><td><input type="hidden" name="dep_id[]" value="' . (int) $row['id'] . '"><input type="date" name="dep_date[]" value="' . h($row['depart_date']) . '"></td>';
+        echo '<td><input type="date" name="dep_return[]" value="' . h((string) $row['return_date']) . '"></td>';
+        echo '<td><input type="number" min="0" name="dep_seats[]" value="' . h((string) $row['seats_left']) . '" style="max-width:110px"></td>';
+        echo '<td><button type="button" class="btn small ghost dep-remove">إزالة</button></td></tr>';
+    }
+    echo '</tbody></table><button type="button" class="btn small secondary dep-add" style="margin-top:8px">إضافة موعد</button></div>';
+    echo '<div class="hint">' . h($hint) . '</div>';
+}
+
 function record_field(string $name, array $field, array $record): void
 {
+    if (!empty($field['section'])) {
+        echo '<h2 class="form-section">' . h($field['section']) . '</h2>';
+    }
+    if (($field['type'] ?? '') === 'departures') {
+        render_departures((array) ($record['departures'] ?? []), (string) ($field['hint'] ?? ''));
+        return;
+    }
     $values = ['ar' => (string) ($record[$name] ?? '')];
     foreach (extra_languages() as $lang) {
         $values[$lang] = (string) ($record[$name . '_' . $lang] ?? '');

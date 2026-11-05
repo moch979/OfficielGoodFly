@@ -17,8 +17,11 @@ function migrations(): array
         '2026_11_05_07_admin_features' => 'migrate_admin_features',
         '2026_11_05_08_visitor_language' => 'migrate_visitor_language',
         '2026_11_05_09_logo_brand' => 'migrate_logo_brand',
+        '2026_11_05_10_program_pages' => 'migrate_program_pages',
     ];
 }
+
+require_once __DIR__ . '/migrations_programs.php';
 
 function run_migrations(): void
 {

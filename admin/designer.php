@@ -70,6 +70,11 @@ $csrf = csrf_token();
         .intro { color: #3F4E66; font-size: 13px; margin: 0 0 8px; }
         .preview { width: 100%; height: 92px; object-fit: cover; border-radius: 10px; margin-top: 8px; }
         .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+        .deprow { display: grid; grid-template-columns: 1fr 1fr 80px auto; gap: 4px; margin-bottom: 4px; }
+        .deprow input { padding: 6px; border: 1px solid #d9e1ec; border-radius: 8px; width: 100%; }
+        .thumbs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .thumbs img { width: 56px; height: 40px; object-fit: cover; border-radius: 6px; }
+        .formsec { margin: 18px 0 0; padding-top: 10px; border-top: 1px solid #dbe4f0; font-size: 14px; }
         .itemform { background: #fff; border: 2px solid #F2C14E; border-radius: 14px; padding: 4px 12px 12px; margin: 8px 0; }
         .editlang { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; font-weight: 700; margin: 6px 0; }
         .editlang button { border: 1px solid #dbe4f0; background: #fff; border-radius: 999px; padding: 4px 10px; cursor: pointer; font-weight: 700; }
@@ -348,9 +353,48 @@ $csrf = csrf_token();
         }
 
         /** nameFor(lang) gives the input name; values = {ar, fr, en}. */
+        function departuresControl(field, rows) {
+            const wrap = el('div');
+            wrap.append(el('label', {}, field.label));
+            const list = el('div');
+            const addRow = (row) => {
+                const line = el('div', { class: 'deprow' });
+                const id = el('input', { type: 'hidden', name: 'dep_id[]', value: String(row.id || 0) });
+                const date = el('input', { type: 'date', name: 'dep_date[]', title: 'تاريخ الانطلاق' });
+                date.value = row.depart_date || '';
+                const back = el('input', { type: 'date', name: 'dep_return[]', title: 'تاريخ العودة' });
+                back.value = row.return_date || '';
+                const seats = el('input', { type: 'number', name: 'dep_seats[]', min: '0', placeholder: 'المقاعد', title: 'المقاعد المتبقية' });
+                seats.value = row.seats_left ?? '';
+                const remove = smallButton('×', () => line.remove(), true);
+                line.append(id, date, back, seats, remove);
+                list.append(line);
+            };
+            (rows || []).forEach(addRow);
+            const add = smallButton('إضافة موعد', () => addRow({}));
+            wrap.append(el('div', { class: 'hint' }, 'الانطلاق — العودة — المقاعد المتبقية'), list, add);
+            if (field.hint) wrap.append(el('div', { class: 'hint' }, field.hint));
+            return wrap;
+        }
+
         function fieldControl(field, nameFor, values, fileName) {
             const wrap = el('div');
             const type = field.type;
+            if (field.section) wrap.append(el('h4', { class: 'formsec' }, field.section));
+            if (type === 'departures') {
+                wrap.append(departuresControl(field, values.ar));
+                return wrap;
+            }
+            if (type === 'gallery') {
+                wrap.append(el('label', {}, field.label));
+                const area = el('textarea', { name: nameFor('ar'), dir: 'ltr' });
+                area.value = values.ar || '';
+                const thumbs = el('div', { class: 'thumbs' });
+                String(values.ar || '').split(/\n/).map((s) => s.trim()).filter(Boolean).forEach((path) => thumbs.append(el('img', { src: mediaUrl(path), alt: '' })));
+                wrap.append(area, el('input', { type: 'file', name: 'file_gallery[]', multiple: 'multiple', accept: 'image/jpeg,image/png,image/webp,image/gif', style: 'margin-top:8px' }), thumbs);
+                if (field.hint) wrap.append(el('div', { class: 'hint' }, field.hint));
+                return wrap;
+            }
             if (type === 'checkbox' || type === 'bool') {
                 const check = el('label', { class: 'check' });
                 const input = el('input', { type: 'checkbox', name: nameFor('ar'), value: '1' });
@@ -373,8 +417,8 @@ $csrf = csrf_token();
                 const dir = lang === 'ar' ? 'rtl' : 'ltr';
                 let input;
                 const value = values[lang] ?? '';
-                if (type === 'textarea' || type === 'html' || type === 'lines') {
-                    input = el('textarea', { name: nameFor(lang), dir });
+                if (type === 'textarea' || type === 'html' || type === 'lines' || type === 'blocks') {
+                    input = el('textarea', { name: nameFor(lang), dir, style: type === 'blocks' ? 'min-height:220px' : null });
                     input.value = value;
                 } else if (type === 'select') {
                     input = el('select', { name: nameFor(lang) });
@@ -440,6 +484,13 @@ $csrf = csrf_token();
                 row.append(el('span', {}, item.summary + (item.active ? '' : ' (مخفي)')));
                 const actions = el('div', { class: 'actions' });
                 actions.style.marginTop = '0';
+                if (block.kind === 'packages') {
+                    actions.append(smallButton('نسخ', () => itemAction(block, item.id, 'duplicate_item')));
+                    if (item.url) {
+                        const page = el('a', { href: item.url, target: '_blank', rel: 'noopener', class: 'btn tiny', style: 'text-decoration:none' }, 'الصفحة');
+                        actions.append(page);
+                    }
+                }
                 actions.append(
                     smallButton('تعديل', () => row.after(itemForm(block, item.values, item.id))),
                     smallButton('أعلى', () => itemAction(block, item.id, 'move_item', { direction: 'up' })),
@@ -460,6 +511,7 @@ $csrf = csrf_token();
             const values = {};
             Object.entries(block.fields).forEach(([name, field]) => {
                 if (field.type === 'checkbox') values[name] = 1;
+                else if (field.type === 'departures') values[name] = [];
                 else if (name === 'stars') values[name] = 5;
                 else if (field.type === 'select') values[name] = Object.keys(field.options || {})[0] || '';
                 else values[name] = '';
