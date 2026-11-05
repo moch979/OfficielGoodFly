@@ -15,8 +15,8 @@ module.exports = {
                 },
             },
             boxShadow: {
-                'gold-soft': '0 10px 30px -10px rgba(216, 195, 155, 0.35)',
-                lux: '0 20px 40px -15px rgba(24, 59, 53, 0.12)',
+                'gold-soft': '0 10px 30px -10px rgba(242, 193, 78, 0.35)',
+                lux: '0 20px 40px -15px rgba(29, 60, 120, 0.12)',
             },
         },
     },

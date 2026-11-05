@@ -4,13 +4,13 @@
 
 @layer base {
     :root {
-        --gf-green: 24 59 53;
-        --gf-darkgreen: 16 41 36;
-        --gf-gold: 216 195 155;
-        --gf-lightgold: 234 219 192;
-        --gf-ivory: 247 245 239;
-        --gf-lightivory: 253 252 249;
-        --gf-slate: 44 62 58;
+        --gf-green: 29 60 120;
+        --gf-darkgreen: 15 35 80;
+        --gf-gold: 242 193 78;
+        --gf-lightgold: 248 220 142;
+        --gf-ivory: 244 248 252;
+        --gf-lightivory: 251 253 255;
+        --gf-slate: 36 50 74;
         --gf-body: 'Tajawal', 'Cairo', sans-serif;
         --gf-title: 'Amiri', serif;
         --gf-section-y: 96px;
@@ -43,12 +43,16 @@
         opacity: 0.25;
     }
     .gold-gradient-text {
-        background: linear-gradient(135deg, rgb(var(--gf-gold)) 0%, #B89E6C 50%, rgb(var(--gf-lightgold)) 100%);
+        background: linear-gradient(135deg, rgb(var(--gf-gold)) 0%, rgb(var(--gf-lightgold)) 50%, rgb(var(--gf-gold)) 100%);
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
     }
-    .gold-bg-gradient { background: linear-gradient(135deg, rgb(var(--gf-gold)) 0%, #C4A976 100%); }
+    .gold-bg-gradient {
+        background: linear-gradient(135deg, rgb(var(--gf-lightgold)) 0%, rgb(var(--gf-gold)) 100%);
+        background: linear-gradient(135deg, rgb(var(--gf-gold)) 0%, color-mix(in srgb, rgb(var(--gf-gold)) 82%, #8a4b00) 100%);
+    }
+    .gf-logo-badge { background: #fff; border-radius: 1rem; box-shadow: 0 6px 18px -10px rgba(0, 0, 0, .45); }
     .gf-flow { display: flex; flex-direction: column; width: 100%; }
     .gf-flow > * { width: 100%; }
     .gf-section { padding-top: var(--gf-section-y); padding-bottom: var(--gf-section-y); }

@@ -16,7 +16,7 @@ function install_page(string $title, string $body, int $status = 200): void
 {
     http_response_code($status);
     echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>';
-    echo '<style>body{font-family:Tahoma,sans-serif;background:#102924;color:#F7F5EF;padding:40px}.box{max-width:560px;margin:auto;background:#183B35;border:1px solid #D8C39B;border-radius:20px;padding:28px}h1{color:#D8C39B;margin-top:0}label{display:block;margin:12px 0 6px;font-weight:bold}input{width:100%;padding:11px;border-radius:10px;border:0;box-sizing:border-box}button{margin-top:18px;padding:12px 20px;border:0;border-radius:999px;background:#D8C39B;color:#102924;font-weight:bold;cursor:pointer}.err{background:#5c2020;padding:10px;border-radius:10px}a{color:#D8C39B}</style>';
+    echo '<style>body{font-family:Tahoma,sans-serif;background:#0F2350;color:#F4F8FC;padding:40px}.box{max-width:560px;margin:auto;background:#1D3C78;border:1px solid #F2C14E;border-radius:20px;padding:28px}h1{color:#F2C14E;margin-top:0}label{display:block;margin:12px 0 6px;font-weight:bold}input{width:100%;padding:11px;border-radius:10px;border:0;box-sizing:border-box}button{margin-top:18px;padding:12px 20px;border:0;border-radius:999px;background:#F2C14E;color:#0F2350;font-weight:bold;cursor:pointer}.err{background:#5c2020;padding:10px;border-radius:10px}a{color:#F2C14E}</style>';
     echo '</head><body><div class="box"><h1>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</h1>' . $body . '</div></body></html>';
     exit;
 }
@@ -288,7 +288,7 @@ try {
     $existing = (int) $pdo->query('SELECT COUNT(*) FROM settings')->fetchColumn();
     if ($existing > 0) {
         if (!$isCli) {
-            echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تم التثبيت</title></head><body style="font-family:Tahoma;background:#F7F5EF;color:#183B35;padding:40px">';
+            echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تم التثبيت</title></head><body style="font-family:Tahoma;background:#F4F8FC;color:#1D3C78;padding:40px">';
             echo '<h1>الموقع مثبت مسبقاً</h1><p>لن يتم مسح البيانات الحالية.</p>';
             echo '<p><a href="index.php">فتح الموقع</a> — <a href="admin/login.php">لوحة التحكم</a></p></body></html>';
         } else {
@@ -318,13 +318,13 @@ try {
         ['logo_tagline', 'Sacred & Premium Journeys', 'brand', 'السطر تحت الشعار', 'text', ''],
         ['logo_icon', 'fa-plane-departure', 'brand', 'أيقونة الشعار', 'text', 'اسم الأيقونة فقط، مثل fa-plane-departure'],
 
-        ['color_green', '#183B35', 'colors', 'الأخضر الأساسي', 'color', ''],
-        ['color_darkgreen', '#102924', 'colors', 'الأخضر الداكن', 'color', ''],
-        ['color_gold', '#D8C39B', 'colors', 'الذهبي', 'color', ''],
-        ['color_lightgold', '#EADBC0', 'colors', 'الذهبي الفاتح', 'color', ''],
-        ['color_ivory', '#F7F5EF', 'colors', 'العاجي', 'color', ''],
-        ['color_lightivory', '#FDFCF9', 'colors', 'العاجي الفاتح', 'color', ''],
-        ['color_slate', '#2C3E3A', 'colors', 'لون النص', 'color', ''],
+        ['color_green', '#1D3C78', 'colors', 'الأخضر الأساسي', 'color', ''],
+        ['color_darkgreen', '#0F2350', 'colors', 'الأخضر الداكن', 'color', ''],
+        ['color_gold', '#F2C14E', 'colors', 'الذهبي', 'color', ''],
+        ['color_lightgold', '#F8DC8E', 'colors', 'الذهبي الفاتح', 'color', ''],
+        ['color_ivory', '#F4F8FC', 'colors', 'العاجي', 'color', ''],
+        ['color_lightivory', '#FBFDFF', 'colors', 'العاجي الفاتح', 'color', ''],
+        ['color_slate', '#24324A', 'colors', 'لون النص', 'color', ''],
         ['body_font', 'Tajawal', 'design', 'خط النصوص', 'text', 'Tajawal أو Cairo أو Amiri أو Montserrat'],
         ['title_font', 'Amiri', 'design', 'خط العناوين', 'text', 'Amiri أو Cairo أو Tajawal أو Montserrat'],
         ['section_padding', '96', 'design', 'فراغ الأقسام بالبكسل', 'number', 'المسافة أعلى وأسفل الأقسام الكبيرة'],

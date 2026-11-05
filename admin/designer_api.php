@@ -17,13 +17,13 @@ function designer_fail(string $message, int $status = 400): void
 function default_design(): array
 {
     $values = [
-        'color_green' => '#183B35',
-        'color_darkgreen' => '#102924',
-        'color_gold' => '#D8C39B',
-        'color_lightgold' => '#EADBC0',
-        'color_ivory' => '#F7F5EF',
-        'color_lightivory' => '#FDFCF9',
-        'color_slate' => '#2C3E3A',
+        'color_green' => '#1D3C78',
+        'color_darkgreen' => '#0F2350',
+        'color_gold' => '#F2C14E',
+        'color_lightgold' => '#F8DC8E',
+        'color_ivory' => '#F4F8FC',
+        'color_lightivory' => '#FBFDFF',
+        'color_slate' => '#24324A',
         'body_font' => 'Tajawal',
         'title_font' => 'Amiri',
         'section_padding' => '96',

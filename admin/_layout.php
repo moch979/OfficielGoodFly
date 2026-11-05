@@ -38,7 +38,8 @@ function admin_header(string $title, string $active): void
     echo '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
     echo '<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">';
     echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">';
-    echo '<style>' . admin_css() . '</style></head><body data-edit-lang="ar"><div class="layout"><aside class="sidebar"><div class="brand">GOOD FLY</div>';
+    $logo = s('logo_image') !== '' ? '<img src="' . h(asset_url(s('logo_image'))) . '" alt="' . h(s('logo_alt', 'Good Fly Travel')) . '">' : 'GOOD FLY';
+    echo '<style>' . admin_css() . '</style></head><body data-edit-lang="ar"><div class="layout"><aside class="sidebar"><div class="brand">' . $logo . '</div>';
     foreach (admin_menu() as $item) {
         $class = $item[3] === $active ? ' class="active"' : '';
         $badge = $item[0] === 'bookings.php' && $newBookings > 0 ? '<b class="badge">' . $newBookings . '</b>' : '';
@@ -61,49 +62,50 @@ function admin_footer(): void
 function admin_css(): string
 {
     return '
-        *{box-sizing:border-box} body{margin:0;font-family:Tajawal,Tahoma,sans-serif;background:#F7F5EF;color:#183B35}
-        a{color:#183B35} .layout{display:flex;min-height:100vh}
-        .sidebar{width:270px;background:#102924;color:#fff;padding:22px 14px;flex-shrink:0}
-        .brand{font-weight:800;letter-spacing:1px;padding:8px 12px 18px;color:#D8C39B}
+        *{box-sizing:border-box} body{margin:0;font-family:Tajawal,Tahoma,sans-serif;background:#F4F8FC;color:#1D3C78}
+        a{color:#1D3C78} .layout{display:flex;min-height:100vh}
+        .sidebar{width:270px;background:#0F2350;color:#fff;padding:22px 14px;flex-shrink:0}
+        .brand{font-weight:800;letter-spacing:1px;padding:8px 12px 18px;color:#F2C14E}
+        .brand img{display:block;height:54px;width:auto;background:#fff;border-radius:14px;padding:4px 10px}
         .sidebar a,.sidebar .linklike{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.82);text-decoration:none;padding:9px 12px;border-radius:12px;margin-bottom:3px;font-size:14px;width:100%;background:none;border:0;font-family:inherit;cursor:pointer;text-align:start}
-        .sidebar a.active,.sidebar a:hover,.sidebar .linklike:hover{background:rgba(216,195,155,.16);color:#EADBC0}
-        .badge{margin-inline-start:auto;background:#D8C39B;color:#102924;border-radius:999px;padding:1px 8px;font-size:12px}
+        .sidebar a.active,.sidebar a:hover,.sidebar .linklike:hover{background:rgba(242,193,78,.16);color:#F8DC8E}
+        .badge{margin-inline-start:auto;background:#F2C14E;color:#0F2350;border-radius:999px;padding:1px 8px;font-size:12px}
         .content{flex:1;padding:28px;min-width:0}
         .top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
         h1{font-size:28px;margin:0} h2{margin:0 0 8px}
-        .card{background:#fff;border:1px solid rgba(216,195,155,.45);border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px -24px rgba(24,59,53,.8);margin-bottom:16px}
+        .card{background:#fff;border:1px solid rgba(242,193,78,.45);border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px -24px rgba(29,60,120,.8);margin-bottom:16px}
         label{display:block;font-weight:800;margin:14px 0 6px;font-size:14px}
-        input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=search],textarea,select{width:100%;padding:11px 12px;border:1px solid #e6e1d6;border-radius:12px;font-family:inherit;background:#fff;color:#183B35;font-size:14px}
+        input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=search],textarea,select{width:100%;padding:11px 12px;border:1px solid #d9e1ec;border-radius:12px;font-family:inherit;background:#fff;color:#1D3C78;font-size:14px}
         textarea{min-height:110px;resize:vertical}
-        .btn,.btn:visited{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#D8C39B,#C4A976);color:#102924;border:0;border-radius:999px;padding:10px 16px;font-weight:800;cursor:pointer;text-decoration:none;font-family:inherit;font-size:14px}
-        .btn.secondary{background:#183B35;color:#fff}.btn.ghost{background:transparent;color:#183B35;border:1px solid rgba(24,59,53,.2)}
+        .btn,.btn:visited{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#F2C14E,#E3A93A);color:#0F2350;border:0;border-radius:999px;padding:10px 16px;font-weight:800;cursor:pointer;text-decoration:none;font-family:inherit;font-size:14px}
+        .btn.secondary{background:#1D3C78;color:#fff}.btn.ghost{background:transparent;color:#1D3C78;border:1px solid rgba(29,60,120,.2)}
         .btn.danger{background:#8d2f2f;color:#fff}.btn.small{padding:6px 10px;font-size:12px}
         table{width:100%;border-collapse:collapse} th,td{padding:10px 8px;border-bottom:1px solid #eee;text-align:start;vertical-align:middle;font-size:14px}
         .flash{padding:12px 14px;border-radius:12px;margin-bottom:14px}.ok{background:#e7f6ee}.err{background:#fdecec}.warn{background:#fff6e0}
-        .hint{color:#6d746f;font-size:12px;font-weight:500;margin-top:4px}
-        .intro{color:#405650;margin:0 0 16px}
+        .hint{color:#66708a;font-size:12px;font-weight:500;margin-top:4px}
+        .intro{color:#3F4E66;margin:0 0 16px}
         .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-        .thumb{width:72px;height:48px;object-fit:cover;border-radius:8px;border:1px solid #eadfca}
+        .thumb{width:72px;height:48px;object-fit:cover;border-radius:8px;border:1px solid #dbe4f0}
         .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-        .tabs a{text-decoration:none;padding:8px 12px;border-radius:999px;background:#fff;border:1px solid #eadfca;font-size:13px}
-        .tabs a.active{background:#183B35;color:#F7F5EF}
+        .tabs a{text-decoration:none;padding:8px 12px;border-radius:999px;background:#fff;border:1px solid #dbe4f0;font-size:13px}
+        .tabs a.active{background:#1D3C78;color:#F4F8FC}
         .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
         .stat strong{display:block;font-size:28px}
         .check{display:flex;align-items:center;gap:8px;font-weight:700}
         .check input{width:auto}
-        .langbar{position:sticky;top:0;z-index:5;display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:#F7F5EF;padding:10px 0;margin:-6px 0 6px;font-size:13px;font-weight:700}
-        .langbar button{border:1px solid #eadfca;background:#fff;border-radius:999px;padding:6px 12px;cursor:pointer;font-family:inherit;font-weight:700}
-        .langbar button.on{background:#183B35;color:#fff;border-color:#183B35}
-        .lang-tag{display:inline-block;font-size:11px;background:#EADBC0;color:#102924;border-radius:6px;padding:1px 6px;margin-inline-start:6px;font-weight:700}
-        .ref{font-size:12px;color:#6d746f;background:#faf8f3;border:1px dashed #eadfca;border-radius:8px;padding:6px 8px;margin-bottom:6px;white-space:pre-line;max-height:90px;overflow:auto}
+        .langbar{position:sticky;top:0;z-index:5;display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:#F4F8FC;padding:10px 0;margin:-6px 0 6px;font-size:13px;font-weight:700}
+        .langbar button{border:1px solid #dbe4f0;background:#fff;border-radius:999px;padding:6px 12px;cursor:pointer;font-family:inherit;font-weight:700}
+        .langbar button.on{background:#1D3C78;color:#fff;border-color:#1D3C78}
+        .lang-tag{display:inline-block;font-size:11px;background:#F8DC8E;color:#0F2350;border-radius:6px;padding:1px 6px;margin-inline-start:6px;font-weight:700}
+        .ref{font-size:12px;color:#66708a;background:#f6f9fd;border:1px dashed #dbe4f0;border-radius:8px;padding:6px 8px;margin-bottom:6px;white-space:pre-line;max-height:90px;overflow:auto}
         body[data-edit-lang="ar"] .lang-pane:not([data-lang="ar"]),
         body[data-edit-lang="fr"] .lang-pane:not([data-lang="fr"]),
         body[data-edit-lang="en"] .lang-pane:not([data-lang="en"]){display:none}
         .missing{color:#8d2f2f;font-size:12px;font-weight:700}
         .checklist li{margin:6px 0}
         .pager{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
-        .pager a,.pager span{padding:6px 10px;border-radius:8px;border:1px solid #eadfca;background:#fff;text-decoration:none;font-size:13px}
-        .pager span{background:#183B35;color:#fff}
+        .pager a,.pager span{padding:6px 10px;border-radius:8px;border:1px solid #dbe4f0;background:#fff;text-decoration:none;font-size:13px}
+        .pager span{background:#1D3C78;color:#fff}
         @media(max-width:900px){.layout{display:block}.sidebar{width:auto}.content{padding:16px}}
     ';
 }
@@ -191,7 +193,7 @@ function render_field(string $id, array $field, callable $nameFor, array $values
                 echo '<div style="margin-top:8px"><img class="thumb" src="' . h(asset_url($value)) . '" alt=""></div>';
             }
         } elseif ($type === 'color') {
-            $color = valid_hex($value) ? $value : '#183B35';
+            $color = valid_hex($value) ? $value : '#1D3C78';
             echo '<input id="' . h($inputId) . '" type="color" name="' . $name . '" value="' . h($color) . '" style="height:48px;width:120px;padding:4px">';
         } elseif ($type === 'password') {
             $placeholder = $value !== '' ? 'محفوظة — اكتب لتغييرها' : '';

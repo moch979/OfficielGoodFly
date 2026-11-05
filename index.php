@@ -20,6 +20,9 @@ $pageUrl = static function (string $code): string {
 $canonical = site_url() . '/' . ($lang === default_lang() ? '' : $lang . '/');
 $ogImage = absolute_url(s('og_image') !== '' ? s('og_image') : ($site['hero'][0] ?? ''));
 $favicon = s('favicon') !== '' ? asset_url(s('favicon')) : asset_url('assets/img/favicon.svg');
+$logoUrl = s('logo_image') !== '' ? asset_url(s('logo_image')) : '';
+$logoHeight = max(32, min(96, (int) s('logo_height', '52')));
+$logoAlt = s('logo_alt', 'Good Fly Travel');
 $cssFile = __DIR__ . '/assets/css/site.css';
 $fontFamilies = array_unique([s('body_font', 'Tajawal'), s('title_font', 'Amiri'), 'Montserrat']);
 $fontQuery = [
@@ -38,6 +41,7 @@ $schema = [
     'name' => s('about_card_title', 'Good Fly Travel'),
     'url' => $canonical,
     'image' => $ogImage,
+    'logo' => $logoUrl !== '' ? absolute_url(s('logo_image')) : null,
     'telephone' => s('footer_phone'),
     'email' => s('footer_email'),
     'address' => ['@type' => 'PostalAddress', 'streetAddress' => s('footer_address'), 'addressCountry' => 'MA'],
@@ -66,7 +70,7 @@ $schema = [
     <meta property="og:image" content="<?= h($ogImage) ?>">
     <meta name="twitter:card" content="summary_large_image">
     <?php endif; ?>
-    <meta name="theme-color" content="<?= e('color_green', '#183B35') ?>">
+    <meta name="theme-color" content="<?= e('color_green', '#1D3C78') ?>">
     <link rel="icon" href="<?= h($favicon) ?>">
     <?php if (!empty($site['hero'][0])): ?>
     <link rel="preload" as="image" href="<?= h($site['hero'][0]) ?>">
@@ -79,13 +83,13 @@ $schema = [
     <script defer src="<?= h(asset_url('assets/js/alpine.min.js')) ?>"></script>
     <style>
         :root {
-            --gf-green: <?= color_channels('color_green', '#183B35') ?>;
-            --gf-darkgreen: <?= color_channels('color_darkgreen', '#102924') ?>;
-            --gf-gold: <?= color_channels('color_gold', '#D8C39B') ?>;
-            --gf-lightgold: <?= color_channels('color_lightgold', '#EADBC0') ?>;
-            --gf-ivory: <?= color_channels('color_ivory', '#F7F5EF') ?>;
-            --gf-lightivory: <?= color_channels('color_lightivory', '#FDFCF9') ?>;
-            --gf-slate: <?= color_channels('color_slate', '#2C3E3A') ?>;
+            --gf-green: <?= color_channels('color_green', '#1D3C78') ?>;
+            --gf-darkgreen: <?= color_channels('color_darkgreen', '#0F2350') ?>;
+            --gf-gold: <?= color_channels('color_gold', '#F2C14E') ?>;
+            --gf-lightgold: <?= color_channels('color_lightgold', '#F8DC8E') ?>;
+            --gf-ivory: <?= color_channels('color_ivory', '#F4F8FC') ?>;
+            --gf-lightivory: <?= color_channels('color_lightivory', '#FBFDFF') ?>;
+            --gf-slate: <?= color_channels('color_slate', '#24324A') ?>;
             --gf-body: <?= gf_font_stack('body_font', 'Tajawal') ?>;
             --gf-title: <?= gf_font_stack('title_font', 'Amiri') ?>;
             --gf-section-y: <?= max(32, min(200, (int) s('section_padding', '96'))) ?>px;
@@ -120,7 +124,12 @@ $schema = [
     <header data-gf="header" class="sticky top-0 z-50 transition-all duration-300" :class="scrolled ? 'bg-brand-green/95 backdrop-blur-md shadow-lux py-3' : 'bg-brand-green/90 backdrop-blur-sm py-4'">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between">
-                <a href="#hero" class="flex items-center gap-3.5 group" aria-label="<?= e('about_card_title', 'Good Fly Travel') ?>">
+                <?php if ($logoUrl !== ''): ?>
+                <a href="#hero" class="gf-logo-badge inline-flex items-center px-3 py-1 transition-transform hover:scale-[1.03]">
+                    <img src="<?= h($logoUrl) ?>" alt="<?= h($logoAlt) ?>" style="height: <?= $logoHeight ?>px" class="w-auto">
+                </a>
+                <?php else: ?>
+                <a href="#hero" class="flex items-center gap-3.5 group" aria-label="<?= h($logoAlt) ?>">
                     <div class="w-11 h-11 rounded-full border-2 border-brand-gold flex items-center justify-center bg-brand-darkgreen group-hover:border-white transition-all duration-300 shadow-md">
                         <i class="fa-solid <?= e('logo_icon', 'fa-plane-departure') ?> text-brand-gold text-lg group-hover:scale-110 transition-transform" aria-hidden="true"></i>
                     </div>
@@ -132,6 +141,7 @@ $schema = [
                         <span class="text-[9px] uppercase tracking-widest text-brand-gold/90 font-medium -mt-1"><?= e('logo_tagline') ?></span>
                     </div>
                 </a>
+                <?php endif; ?>
 
                 <nav class="hidden lg:flex items-center gap-6 text-sm font-medium" aria-label="<?= h(t('menu')) ?>">
                     <?php foreach ($site['nav'] as $link): ?>
@@ -506,12 +516,18 @@ $schema = [
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
                 <div class="space-y-4">
+                    <?php if ($logoUrl !== ''): ?>
+                    <div class="gf-logo-badge inline-flex px-3 py-1">
+                        <img src="<?= h($logoUrl) ?>" alt="<?= h($logoAlt) ?>" loading="lazy" style="height: <?= $logoHeight + 8 ?>px" class="w-auto">
+                    </div>
+                    <?php else: ?>
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-full border border-brand-gold flex items-center justify-center bg-brand-green">
                             <i class="fa-solid <?= e('logo_icon', 'fa-plane-departure') ?> text-brand-gold" aria-hidden="true"></i>
                         </div>
                         <span class="font-latin text-2xl font-black text-white" dir="ltr"><?= e('logo_word') ?><span class="text-brand-gold"><?= e('logo_accent') ?></span></span>
                     </div>
+                    <?php endif; ?>
                     <p class="text-xs text-brand-ivory/70 leading-relaxed"><?= nl('footer_about') ?></p>
                     <div class="text-[11px] text-brand-gold/80 space-y-1 pt-2">
                         <div><?= e('footer_license_label') ?> <strong><?= e('footer_license_number') ?></strong></div>

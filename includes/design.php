@@ -89,13 +89,13 @@ function designer_fonts(): array
 function designer_colors(): array
 {
     return [
-        'color_green' => 'الأخضر',
-        'color_darkgreen' => 'الأخضر الداكن',
-        'color_gold' => 'الذهبي',
-        'color_lightgold' => 'الذهبي الفاتح',
-        'color_ivory' => 'الخلفية العاجية',
-        'color_lightivory' => 'العاجي الفاتح',
-        'color_slate' => 'لون النص',
+        'color_green' => 'الأساسي (الكحلي)',
+        'color_darkgreen' => 'الداكن',
+        'color_gold' => 'التمييز (الذهبي)',
+        'color_lightgold' => 'التمييز الفاتح',
+        'color_ivory' => 'خلفية الصفحة',
+        'color_lightivory' => 'الخلفية الفاتحة',
+        'color_slate' => 'لون النصوص',
     ];
 }
 
@@ -220,7 +220,7 @@ function designer_state(): array
 {
     $colors = [];
     foreach (designer_colors() as $key => $label) {
-        $colors[$key] = ['label' => $label, 'value' => valid_hex(s($key)) ? s($key) : '#183B35'];
+        $colors[$key] = ['label' => $label, 'value' => valid_hex(s($key)) ? s($key) : '#1D3C78'];
     }
     $flags = [];
     foreach (designer_flags() as $key => $label) {

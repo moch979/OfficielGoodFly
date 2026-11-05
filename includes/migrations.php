@@ -16,6 +16,7 @@ function migrations(): array
         '2026_11_05_06_i18n_content' => 'migrate_i18n_content',
         '2026_11_05_07_admin_features' => 'migrate_admin_features',
         '2026_11_05_08_visitor_language' => 'migrate_visitor_language',
+        '2026_11_05_09_logo_brand' => 'migrate_logo_brand',
     ];
 }
 
@@ -272,6 +273,48 @@ function migrate_admin_features(PDO $pdo): void
     mig_setting($pdo, 'smtp_user', '', 'notifications', 'اسم مستخدم SMTP', 'text', '', 60);
     mig_setting($pdo, 'smtp_pass', '', 'notifications', 'كلمة مرور SMTP', 'password', 'تُحفظ في قاعدة البيانات. اتركها كما هي إن لم تتغير', 70);
     mig_setting($pdo, 'design_draft', '', 'system', 'مسودة التصميم', 'text', '', 900);
+}
+
+/** Colours taken from the Good Fly logo: navy lettering, royal-blue waves, golden sun. */
+function logo_palette(): array
+{
+    return [
+        'color_green' => ['#1D3C78', 'اللون الأساسي (رأس الصفحة وقسم المدن)'],
+        'color_darkgreen' => ['#0F2350', 'اللون الداكن (الشريط العلوي والتذييل)'],
+        'color_gold' => ['#F2C14E', 'لون التمييز (الأزرار والعناوين الصغيرة)'],
+        'color_lightgold' => ['#F8DC8E', 'لون التمييز الفاتح'],
+        'color_ivory' => ['#F4F8FC', 'خلفية الصفحة'],
+        'color_lightivory' => ['#FBFDFF', 'الخلفية الفاتحة'],
+        'color_slate' => ['#24324A', 'لون النصوص'],
+    ];
+}
+
+function migrate_logo_brand(PDO $pdo): void
+{
+    $current = $pdo->query("SELECT skey, svalue FROM settings WHERE skey LIKE 'color\\_%'")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $differs = false;
+    foreach (logo_palette() as $key => [$hex]) {
+        if (strcasecmp((string) ($current[$key] ?? ''), $hex) !== 0) {
+            $differs = true;
+        }
+    }
+    if ($differs && $current) {
+        require_once __DIR__ . '/snapshots.php';
+        $payload = json_encode(snapshot_payload(), JSON_UNESCAPED_UNICODE);
+        $pdo->prepare('INSERT INTO snapshots (label, payload, size_bytes, created_by, created_at) VALUES (?, ?, ?, ?, ?)')
+            ->execute(['تلقائية: الألوان قبل اعتماد ألوان الشعار', $payload, strlen($payload), 'system', date('Y-m-d H:i:s')]);
+    }
+
+    $update = $pdo->prepare('UPDATE settings SET svalue = ?, label = ? WHERE skey = ?');
+    foreach (logo_palette() as $key => [$hex, $label]) {
+        $update->execute([$hex, $label, $key]);
+    }
+    $pdo->exec("UPDATE settings SET svalue = '' WHERE skey = 'design_draft'");
+
+    mig_setting($pdo, 'logo_image', 'assets/img/logo.png', 'brand', 'صورة الشعار', 'image', 'PNG بخلفية شفافة أو SVG، ويُفضّل عرض 400 بكسل أو أكثر. اتركها فارغة لعرض الشعار النصي.', 1);
+    mig_setting($pdo, 'logo_height', '52', 'brand', 'ارتفاع الشعار بالبكسل', 'number', 'بين 32 و96', 2);
+    mig_setting($pdo, 'logo_alt', 'Good Fly Travel', 'brand', 'وصف الشعار لقارئات الشاشة', 'text', '', 3);
+    $pdo->exec("UPDATE settings SET hint = 'يظهر فقط إذا كانت صورة الشعار فارغة' WHERE skey IN ('logo_word', 'logo_accent', 'logo_badge', 'logo_icon')");
 }
 
 function migrate_visitor_language(PDO $pdo): void

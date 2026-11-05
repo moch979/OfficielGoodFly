@@ -68,7 +68,7 @@ function register_error_handling(): void
             return;
         }
         echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>Good Fly</title></head>';
-        echo '<body style="font-family:Tahoma,sans-serif;background:#F7F5EF;color:#183B35;padding:40px;text-align:center">';
+        echo '<body style="font-family:Tahoma,sans-serif;background:#F4F8FC;color:#1D3C78;padding:40px;text-align:center">';
         echo '<h1>' . h(t('error_title')) . '</h1><p>' . h(t('error_generic')) . '</p></body></html>';
     });
 }
@@ -126,7 +126,7 @@ function install_required(string $message): void
 
     $install = base_path() . '/install.php';
     http_response_code(503);
-    echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تثبيت Good Fly</title></head><body style="font-family:Tahoma,sans-serif;background:#F7F5EF;color:#183B35;padding:40px">';
+    echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تثبيت Good Fly</title></head><body style="font-family:Tahoma,sans-serif;background:#F4F8FC;color:#1D3C78;padding:40px">';
     echo '<h1>الموقع غير مربوط بقاعدة البيانات بعد</h1>';
     echo '<p>' . h($message) . '</p>';
     echo '<p><a href="' . h($install) . '">فتح صفحة التثبيت</a></p>';
