@@ -4,93 +4,103 @@ function load_site(): array
 {
     $nav = [];
     foreach (rows('SELECT label_ar, label_en, label_fr, href FROM nav_links WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
-        $nav[] = [
-            'ar' => $row['label_ar'],
-            'en' => $row['label_en'],
-            'fr' => $row['label_fr'],
-            'href' => $row['href'],
-        ];
+        $label = trim((string) ($row['label_' . current_lang()] ?? ''));
+        $nav[] = ['label' => $label !== '' ? $label : $row['label_ar'], 'href' => safe_url($row['href'])];
     }
 
     $hero = [];
     foreach (rows('SELECT image_url FROM hero_slides WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
-        if (trim((string) $row['image_url']) === '') {
-            continue;
+        if (trim((string) $row['image_url']) !== '') {
+            $hero[] = asset_url($row['image_url']);
         }
-        $hero[] = ['url' => asset_url($row['image_url'])];
-    }
-
-    $categories = [];
-    foreach (rows('SELECT slug, label FROM package_categories WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
-        $categories[] = ['slug' => $row['slug'], 'label' => $row['label']];
     }
 
     $packages = [];
-    foreach (rows('SELECT * FROM packages WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
-        $features = rows('SELECT feature_text FROM package_features WHERE package_id = ? ORDER BY sort_order, id', [$row['id']]);
+    $packageRows = rows('SELECT * FROM packages WHERE is_active = 1 ORDER BY sort_order, id');
+    $featuresByPackage = [];
+    if ($packageRows) {
+        $ids = array_column($packageRows, 'id');
+        $marks = implode(', ', array_fill(0, count($ids), '?'));
+        foreach (rows("SELECT * FROM package_features WHERE package_id IN ($marks) ORDER BY sort_order, id", $ids) as $feature) {
+            $featuresByPackage[$feature['package_id']][] = loc($feature, 'feature_text');
+        }
+    }
+    foreach ($packageRows as $row) {
         $packages[] = [
             'id' => (int) $row['id'],
-            'title' => $row['title'],
+            'title' => loc($row, 'title'),
             'category' => $row['category'],
-            'categoryBadge' => $row['category_badge'],
-            'hotel' => $row['hotel'],
-            'distance' => $row['distance'],
-            'description' => $row['description'],
-            'price' => $row['price'],
+            'categoryBadge' => loc($row, 'category_badge'),
+            'hotel' => loc($row, 'hotel'),
+            'distance' => loc($row, 'distance'),
+            'description' => loc($row, 'description'),
+            'price' => loc($row, 'price'),
             'image' => asset_url((string) $row['image']),
-            'features' => array_column($features, 'feature_text'),
+            'features' => $featuresByPackage[$row['id']] ?? [],
             'hotelClass' => $row['hotel_class'],
             'duration' => (string) $row['duration_days'],
         ];
     }
 
-    $filters = ['trip_type' => [], 'hotel' => [], 'duration' => [], 'booking_type' => []];
-    foreach (rows('SELECT group_key, option_value, label FROM filter_options WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
-        $group = $row['group_key'];
-        if (!isset($filters[$group])) {
-            $filters[$group] = [];
+    $usedCategories = array_unique(array_column($packages, 'category'));
+    $categories = [];
+    foreach (rows('SELECT * FROM package_categories WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
+        if (in_array($row['slug'], $usedCategories, true)) {
+            $categories[] = ['slug' => $row['slug'], 'label' => loc($row, 'label')];
         }
-        $filters[$group][] = ['value' => $row['option_value'], 'label' => $row['label']];
+    }
+
+    $filters = ['trip_type' => [['value' => 'all', 'label' => s('search_all_label', 'الكل')]], 'hotel' => [], 'duration' => [], 'booking_type' => []];
+    foreach ($categories as $category) {
+        $filters['trip_type'][] = ['value' => $category['slug'], 'label' => $category['label']];
+    }
+    foreach (rows("SELECT * FROM filter_options WHERE is_active = 1 AND group_key IN ('hotel', 'duration', 'booking_type') ORDER BY sort_order, id") as $row) {
+        $filters[$row['group_key']][] = ['value' => $row['option_value'], 'label' => loc($row, 'label')];
     }
 
     $tiers = [];
-    foreach (rows('SELECT tier_key, label, price_per_day FROM calc_tiers WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
-        $tiers[] = [
-            'key' => $row['tier_key'],
-            'label' => $row['label'],
-            'price' => (int) $row['price_per_day'],
-        ];
+    foreach (rows('SELECT * FROM calc_tiers WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
+        $tiers[] = ['key' => $row['tier_key'], 'label' => loc($row, 'label'), 'price' => (int) $row['price_per_day']];
     }
 
     $cities = [];
-    foreach (rows('SELECT * FROM cities WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
-        $features = [];
-        foreach (rows('SELECT icon, text FROM city_features WHERE city_id = ? ORDER BY sort_order, id', [$row['id']]) as $feature) {
-            $features[] = ['icon' => $feature['icon'], 'text' => $feature['text']];
+    $cityRows = rows('SELECT * FROM cities WHERE is_active = 1 ORDER BY sort_order, id');
+    $featuresByCity = [];
+    if ($cityRows) {
+        $ids = array_column($cityRows, 'id');
+        $marks = implode(', ', array_fill(0, count($ids), '?'));
+        foreach (rows("SELECT * FROM city_features WHERE city_id IN ($marks) ORDER BY sort_order, id", $ids) as $feature) {
+            $featuresByCity[$feature['city_id']][] = ['icon' => $feature['icon'], 'text' => loc($feature, 'text')];
         }
+    }
+    foreach ($cityRows as $row) {
         $cities[] = [
             'slug' => $row['slug'],
-            'tab' => $row['tab_label'],
-            'heading' => $row['heading'],
+            'tab' => loc($row, 'tab_label'),
+            'heading' => loc($row, 'heading'),
             'image' => asset_url((string) $row['image']),
-            'caption' => $row['caption'],
-            'features' => $features,
+            'caption' => loc($row, 'caption'),
+            'features' => $featuresByCity[$row['id']] ?? [],
         ];
     }
 
     $guides = [];
-    foreach (rows('SELECT id, icon, title, body FROM guides WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
-        $guides[] = [
-            'id' => (int) $row['id'],
-            'icon' => $row['icon'],
-            'title' => $row['title'],
-            'body' => $row['body'],
-        ];
+    foreach (rows('SELECT * FROM guides WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
+        $guides[] = ['id' => (int) $row['id'], 'icon' => $row['icon'], 'title' => loc($row, 'title'), 'body' => loc($row, 'body')];
     }
 
-    $i18n = ['ar' => [], 'en' => [], 'fr' => []];
-    foreach (rows('SELECT lang_code, tkey, tvalue FROM translations ORDER BY sort_order, id') as $row) {
-        $i18n[$row['lang_code']][$row['tkey']] = $row['tvalue'];
+    $localize = static function (array $list, array $columns): array {
+        return array_map(static function ($row) use ($columns) {
+            foreach ($columns as $column) {
+                $row[$column] = loc($row, $column);
+            }
+            return $row;
+        }, $list);
+    };
+
+    $footer = ['quick' => [], 'legal' => []];
+    foreach (rows('SELECT * FROM footer_links WHERE is_active = 1 ORDER BY sort_order, id') as $row) {
+        $footer[$row['group_key']][] = ['label' => loc($row, 'label'), 'href' => safe_url($row['href'])];
     }
 
     return [
@@ -102,12 +112,11 @@ function load_site(): array
         'tiers' => $tiers,
         'cities' => $cities,
         'guides' => $guides,
-        'i18n' => $i18n,
-        'stats' => rows('SELECT value_text, label FROM stats WHERE is_active = 1 ORDER BY sort_order, id'),
-        'points' => rows('SELECT icon, text FROM about_points WHERE is_active = 1 ORDER BY sort_order, id'),
-        'services' => rows('SELECT icon, title, description FROM services WHERE is_active = 1 ORDER BY sort_order, id'),
-        'testimonials' => rows('SELECT quote, initials, name, trip_label, stars FROM testimonials WHERE is_active = 1 ORDER BY sort_order, id'),
-        'footerQuick' => rows("SELECT label, href FROM footer_links WHERE is_active = 1 AND group_key = 'quick' ORDER BY sort_order, id"),
-        'footerLegal' => rows("SELECT label, href FROM footer_links WHERE is_active = 1 AND group_key = 'legal' ORDER BY sort_order, id"),
+        'stats' => $localize(rows('SELECT * FROM stats WHERE is_active = 1 ORDER BY sort_order, id'), ['label']),
+        'points' => $localize(rows('SELECT * FROM about_points WHERE is_active = 1 ORDER BY sort_order, id'), ['text']),
+        'services' => $localize(rows('SELECT * FROM services WHERE is_active = 1 ORDER BY sort_order, id'), ['title', 'description']),
+        'testimonials' => $localize(rows('SELECT * FROM testimonials WHERE is_active = 1 ORDER BY sort_order, id'), ['quote', 'name', 'trip_label']),
+        'footerQuick' => $footer['quick'] ?? [],
+        'footerLegal' => $footer['legal'] ?? [],
     ];
 }

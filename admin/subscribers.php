@@ -11,15 +11,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $list = rows('SELECT * FROM subscribers ORDER BY id DESC');
+
+if (isset($_GET['export'])) {
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="goodfly-subscribers-' . date('Y-m-d') . '.csv"');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");
+    fputcsv($out, ['email', 'lang', 'created_at']);
+    foreach ($list as $row) {
+        fputcsv($out, [$row['email'], $row['lang'], $row['created_at']]);
+    }
+    fclose($out);
+    exit;
+}
+
 admin_header('النشرة البريدية', 'subscribers.php');
-echo '<div class="card" style="overflow:auto"><table><thead><tr><th>البريد</th><th>تاريخ الاشتراك</th><th></th></tr></thead><tbody>';
+echo '<p class="actions"><a class="btn ghost" href="subscribers.php?export=1"><i class="fa-solid fa-file-excel"></i> تصدير القائمة</a><span class="hint">' . count($list) . ' مشترك</span></p>';
+echo '<div class="card" style="overflow:auto"><table><thead><tr><th>البريد</th><th>اللغة</th><th>تاريخ الاشتراك</th><th></th></tr></thead><tbody>';
 foreach ($list as $row) {
-    echo '<tr><td>' . h($row['email']) . '</td><td>' . h($row['created_at']) . '</td><td>';
-    echo '<form method="post" onsubmit="return confirm(\'حذف المشترك؟\')">' . csrf_field() . '<input type="hidden" name="id" value="' . (int) $row['id'] . '"><button class="btn small danger">حذف</button></form>';
+    echo '<tr><td dir="ltr">' . h($row['email']) . '</td><td>' . h(strtoupper($row['lang'])) . '</td><td>' . h($row['created_at']) . '</td><td>';
+    echo delete_button((int) $row['id'], 'حذف المشترك؟');
     echo '</td></tr>';
 }
 if (!$list) {
-    echo '<tr><td colspan="3">لا يوجد مشتركون بعد.</td></tr>';
+    echo '<tr><td colspan="4">لا يوجد مشتركون بعد.</td></tr>';
 }
 echo '</tbody></table></div>';
 admin_footer();

@@ -16,8 +16,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('err', 'كلمة المرور الحالية غير صحيحة.');
     } elseif ($username === '' || !preg_match('/^[A-Za-z0-9_\.\-]{3,40}$/', $username)) {
         flash_set('err', 'اسم المستخدم يجب أن يكون 3 أحرف إنجليزية على الأقل بلا مسافات.');
-    } elseif (strlen($next) < 8) {
-        flash_set('err', 'كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل.');
+    } elseif (strlen($next) < 10) {
+        flash_set('err', 'كلمة المرور الجديدة يجب أن تكون 10 أحرف على الأقل.');
+    } elseif (strcasecmp($next, 'GoodFly@2026') === 0 || strcasecmp($next, $username) === 0) {
+        flash_set('err', 'اختر كلمة مرور مختلفة عن الافتراضية وعن اسم المستخدم.');
     } elseif ($next !== $confirm) {
         flash_set('err', 'تأكيد كلمة المرور غير مطابق.');
     } else {
@@ -28,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 (int) $admin['id'],
             ]);
             db()->prepare("UPDATE settings SET svalue = '1' WHERE skey = 'password_changed'")->execute();
+            session_regenerate_id(true);
             flash_set('ok', 'تم تحديث الحساب.');
         } catch (PDOException $e) {
             flash_set('err', 'اسم المستخدم مستخدم من قبل.');

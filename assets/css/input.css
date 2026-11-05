@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --gf-green: 24 59 53;
+        --gf-darkgreen: 16 41 36;
+        --gf-gold: 216 195 155;
+        --gf-lightgold: 234 219 192;
+        --gf-ivory: 247 245 239;
+        --gf-lightivory: 253 252 249;
+        --gf-slate: 44 62 58;
+        --gf-body: 'Tajawal', 'Cairo', sans-serif;
+        --gf-title: 'Amiri', serif;
+        --gf-section-y: 96px;
+        --gf-hero-min: 92vh;
+    }
+
+    body {
+        font-family: var(--gf-body);
+        background-color: rgb(var(--gf-ivory));
+        color: rgb(var(--gf-green));
+        overflow-x: hidden;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    :focus-visible {
+        outline: 2px solid rgb(var(--gf-gold));
+        outline-offset: 2px;
+    }
+}
+
+@layer components {
+    .font-serif-title { font-family: var(--gf-title); }
+    .font-latin { font-family: 'Montserrat', sans-serif; }
+    .bg-pattern {
+        background-image: radial-gradient(rgb(var(--gf-gold)) 0.75px, transparent 0.75px);
+        background-size: 24px 24px;
+        opacity: 0.25;
+    }
+    .gold-gradient-text {
+        background: linear-gradient(135deg, rgb(var(--gf-gold)) 0%, #B89E6C 50%, rgb(var(--gf-lightgold)) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .gold-bg-gradient { background: linear-gradient(135deg, rgb(var(--gf-gold)) 0%, #C4A976 100%); }
+    .gf-flow { display: flex; flex-direction: column; width: 100%; }
+    .gf-flow > * { width: 100%; }
+    .gf-section { padding-top: var(--gf-section-y); padding-bottom: var(--gf-section-y); }
+    .gf-hero { min-height: var(--gf-hero-min); }
+    .gf-off { opacity: .42; filter: grayscale(.35); }
+    .gf-hp { position: absolute !important; left: -9999px !important; width: 1px; height: 1px; opacity: 0; }
+    body.gf-pick [data-gf] { cursor: pointer; }
+    body.gf-pick [data-gf]:hover { outline: 2px solid rgb(var(--gf-gold)); outline-offset: -3px; }
+    body.gf-pick [data-gf].gf-on,
+    [data-gf].gf-on { outline: 3px solid rgb(var(--gf-gold)); outline-offset: -3px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto !important; }
+    *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: rgb(var(--gf-green)); }
+::-webkit-scrollbar-thumb { background: rgb(var(--gf-gold)); border-radius: 4px; }

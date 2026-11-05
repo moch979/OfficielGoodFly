@@ -1,5 +1,6 @@
 /uploads/*
 !/uploads/.htaccess
 /backups/
+/storage/
 /config.local.php
 /tools/

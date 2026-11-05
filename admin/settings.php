@@ -2,6 +2,7 @@
 
 require __DIR__ . '/_init.php';
 require __DIR__ . '/_layout.php';
+require_once dirname(__DIR__) . '/includes/mailer.php';
 
 $groups = setting_groups();
 $group = (string) ($_GET['group'] ?? 'general');
@@ -16,32 +17,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('err', 'مجموعة غير معروفة.');
         redirect('settings.php');
     }
-    $fields = rows('SELECT skey, field_type FROM settings WHERE sgroup = ?', [$postedGroup]);
     try {
-        $update = db()->prepare('UPDATE settings SET svalue = ? WHERE skey = ? AND sgroup = ?');
-        foreach ($fields as $field) {
-            $key = $field['skey'];
-            $type = $field['field_type'];
-            if ($type === 'bool') {
-                $value = isset($_POST['values'][$key]) ? '1' : '0';
-            } elseif ($type === 'image') {
-                $uploaded = save_upload('file_' . $key);
-                $value = $uploaded ?: trim((string) ($_POST['values'][$key] ?? ''));
-            } elseif ($type === 'number') {
-                $value = (string) (int) ($_POST['values'][$key] ?? 0);
-            } elseif ($type === 'html') {
-                $value = clean_rich_text((string) ($_POST['values'][$key] ?? ''));
-            } elseif ($type === 'color') {
-                $value = trim((string) ($_POST['values'][$key] ?? ''));
-                if (!preg_match('/^#[0-9a-fA-F]{6}$/', $value)) {
-                    throw new RuntimeException('لون غير صالح.');
-                }
-            } else {
-                $value = trim((string) ($_POST['values'][$key] ?? ''));
+        if (($_POST['action'] ?? '') === 'test_mail') {
+            $to = trim(s('notify_email'));
+            if ($to === '') {
+                throw new RuntimeException('احفظ «البريد الذي تصله تنبيهات الطلبات» أولاً.');
             }
-            $update->execute([$value, $key, $postedGroup]);
+            send_mail($to, 'رسالة تجريبية من Good Fly', "هذه رسالة تجريبية من لوحة التحكم.\nإذا وصلتك فتنبيهات الطلبات تعمل.");
+            flash_set('ok', 'أُرسلت رسالة تجريبية إلى ' . $to . '. تفقد صندوق الوارد والبريد المزعج.');
+        } else {
+            if ($postedGroup === 'design' || $postedGroup === 'colors' || $postedGroup === 'visibility') {
+                create_snapshot('تلقائية: قبل تعديل ' . $groups[$postedGroup]);
+            }
+            save_settings_groups([$postedGroup], $_POST);
+            flash_set('ok', 'تم حفظ التفاصيل.');
         }
-        flash_set('ok', 'تم حفظ التفاصيل.');
     } catch (Throwable $e) {
         flash_set('err', $e->getMessage());
     }
@@ -49,43 +39,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $rows = rows('SELECT * FROM settings WHERE sgroup = ? ORDER BY sorder, skey', [$group]);
-admin_header('كل النصوص والتفاصيل', 'settings.php');
-echo '<p class="intro">كل عبارة في الموقع قابلة للتعديل من هنا: العناوين، الألوان، الهاتف، واتساب، وإظهار الأقسام أو إخفاؤها. العناصر المتكررة مثل البرامج والخدمات لها صفحات مستقلة في القائمة.</p>';
-echo '<div class="tabs">';
-foreach ($groups as $key => $label) {
-    $class = $key === $group ? ' class="active"' : '';
-    echo '<a' . $class . ' href="settings.php?group=' . h($key) . '">' . h($label) . '</a>';
-}
-echo '</div><form class="card" method="post" enctype="multipart/form-data">';
-echo csrf_field();
-echo '<input type="hidden" name="group" value="' . h($group) . '">';
-foreach ($rows as $row) {
-    $name = 'values[' . $row['skey'] . ']';
-    echo '<label for="' . h($row['skey']) . '">' . h($row['label']) . '</label>';
-    $type = $row['field_type'];
-    $value = (string) $row['svalue'];
-    if ($type === 'textarea' || $type === 'html') {
-        echo '<textarea id="' . h($row['skey']) . '" name="' . h($name) . '">' . h($value) . '</textarea>';
-    } elseif ($type === 'bool') {
-        $checked = $value === '1' ? ' checked' : '';
-        echo '<label class="check"><input type="checkbox" id="' . h($row['skey']) . '" name="' . h($name) . '" value="1"' . $checked . '> نعم</label>';
-    } elseif ($type === 'image') {
-        echo '<input id="' . h($row['skey']) . '" type="text" name="' . h($name) . '" value="' . h($value) . '">';
-        echo '<input type="file" name="file_' . h($row['skey']) . '" accept="image/*" style="margin-top:8px">';
-        if ($value !== '') {
-            echo '<div style="margin-top:8px"><img class="thumb" alt="" src="' . h(asset_url($value)) . '"></div>';
+$active = $group === 'notifications' ? 'notifications' : 'settings.php';
+admin_header($group === 'notifications' ? 'تنبيهات البريد' : 'كل النصوص والتفاصيل', $active);
+
+if ($group === 'notifications') {
+    echo '<p class="intro">عند كل طلب حجز جديد تصلك رسالة على البريد الذي تحدده هنا. بريد الخوادم المحلية مثل XAMPP لا يرسل غالباً، لذلك جرّب الإرسال بعد رفع الموقع على الاستضافة باستخدام بيانات SMTP من لوحة الاستضافة.</p>';
+} else {
+    echo '<p class="intro">كل عبارة في الموقع قابلة للتعديل من هنا بالعربية والفرنسية والإنجليزية. العناصر المتكررة مثل البرامج والخدمات لها صفحات مستقلة، والمصمم المرئي يعرض التعديل على الموقع مباشرة.</p>';
+    echo '<div class="tabs">';
+    foreach ($groups as $key => $label) {
+        if ($key === 'notifications') {
+            continue;
         }
-    } elseif ($type === 'color') {
-        $color = preg_match('/^#[0-9a-fA-F]{6}$/', $value) ? $value : '#183B35';
-        echo '<input id="' . h($row['skey']) . '" type="color" name="' . h($name) . '" value="' . h($color) . '" style="height:48px;padding:4px">';
-    } elseif ($type === 'number') {
-        echo '<input id="' . h($row['skey']) . '" type="number" name="' . h($name) . '" value="' . h($value) . '">';
-    } else {
-        echo '<input id="' . h($row['skey']) . '" type="text" name="' . h($name) . '" value="' . h($value) . '">';
+        $class = $key === $group ? ' class="active"' : '';
+        echo '<a' . $class . ' href="settings.php?group=' . h($key) . '">' . h($label) . '</a>';
     }
-    if (!empty($row['hint'])) {
-        echo '<div class="hint">' . h($row['hint']) . '</div>';
-    }
+    echo '</div>';
 }
-echo '<div style="margin-top:18px"><button class="btn" type="submit">حفظ هذا القسم</button></div></form>';
+
+$hasTranslatable = (bool) array_filter($rows, static function ($row) {
+    return (int) $row['translatable'] === 1;
+});
+
+echo '<form class="card" method="post" enctype="multipart/form-data">';
+echo csrf_field() . '<input type="hidden" name="group" value="' . h($group) . '">';
+if ($hasTranslatable) {
+    echo edit_lang_switch();
+}
+foreach ($rows as $row) {
+    $key = $row['skey'];
+    $field = [
+        'label' => $row['label'],
+        'type' => $row['field_type'],
+        'hint' => $row['hint'],
+        'translatable' => (int) $row['translatable'] === 1,
+    ];
+    $values = ['ar' => (string) $row['svalue'], 'fr' => (string) $row['svalue_fr'], 'en' => (string) $row['svalue_en']];
+    render_field('s_' . $key, $field, static function (string $lang) use ($key) {
+        return ($lang === default_lang() ? 'values' : 'values_' . $lang) . '[' . $key . ']';
+    }, $values, 'file_' . $key);
+}
+echo '<div class="actions" style="margin-top:18px"><button class="btn" type="submit">حفظ هذا القسم</button></div></form>';
+
+if ($group === 'notifications') {
+    echo '<form class="card" method="post">' . csrf_field() . '<input type="hidden" name="group" value="notifications"><input type="hidden" name="action" value="test_mail">';
+    echo '<h2>تجربة الإرسال</h2><p class="intro">يرسل رسالة تجريبية إلى البريد المحفوظ أعلاه.</p><button class="btn secondary" type="submit">إرسال رسالة تجريبية</button></form>';
+}
 admin_footer();

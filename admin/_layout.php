@@ -19,9 +19,10 @@ function admin_menu(): array
         ['collection.php?type=guides', 'دليل المناسك', 'fa-book-open', 'guides'],
         ['collection.php?type=testimonials', 'آراء العملاء', 'fa-star', 'testimonials'],
         ['collection.php?type=footer', 'روابط التذييل', 'fa-link', 'footer'],
-        ['collection.php?type=i18n', 'ترجمة زر الحجز', 'fa-language', 'i18n'],
         ['bookings.php', 'طلبات الحجز', 'fa-inbox', 'bookings.php'],
         ['subscribers.php', 'النشرة البريدية', 'fa-envelope', 'subscribers.php'],
+        ['settings.php?group=notifications', 'تنبيهات البريد', 'fa-bell', 'notifications'],
+        ['snapshots.php', 'النسخ والاسترجاع', 'fa-clock-rotate-left', 'snapshots.php'],
         ['account.php', 'الحساب وكلمة المرور', 'fa-user-lock', 'account.php'],
     ];
 }
@@ -30,30 +31,55 @@ function admin_header(string $title, string $active): void
 {
     $flash = flash_take();
     $admin = current_admin();
+    $newBookings = (int) db()->query("SELECT COUNT(*) FROM bookings WHERE status = 'new'")->fetchColumn();
     echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
-    echo '<title>' . h($title) . ' | إدارة Good Fly</title>';
+    echo '<meta name="robots" content="noindex"><title>' . h($title) . ' | إدارة Good Fly</title>';
+    echo '<link rel="icon" href="../assets/img/favicon.svg">';
     echo '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
     echo '<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">';
     echo '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">';
-    echo '<style>
+    echo '<style>' . admin_css() . '</style></head><body data-edit-lang="ar"><div class="layout"><aside class="sidebar"><div class="brand">GOOD FLY</div>';
+    foreach (admin_menu() as $item) {
+        $class = $item[3] === $active ? ' class="active"' : '';
+        $badge = $item[0] === 'bookings.php' && $newBookings > 0 ? '<b class="badge">' . $newBookings . '</b>' : '';
+        echo '<a' . $class . ' href="' . h($item[0]) . '"><i class="fa-solid ' . h($item[2]) . '"></i><span>' . h($item[1]) . '</span>' . $badge . '</a>';
+    }
+    echo '<a href="../index.php" target="_blank" rel="noopener"><i class="fa-solid fa-arrow-up-right-from-square"></i><span>عرض الموقع</span></a>';
+    echo '<form method="post" action="logout.php">' . csrf_field() . '<button type="submit" class="linklike"><i class="fa-solid fa-right-from-bracket"></i><span>خروج (' . h($admin['username'] ?? '') . ')</span></button></form>';
+    echo '</aside><main class="content"><div class="top"><h1>' . h($title) . '</h1></div>';
+    if ($flash) {
+        $class = ($flash['type'] ?? '') === 'ok' ? 'ok' : 'err';
+        echo '<div class="flash ' . $class . '" role="status">' . h($flash['message'] ?? '') . '</div>';
+    }
+}
+
+function admin_footer(): void
+{
+    echo '</main></div><script>' . admin_js() . '</script></body></html>';
+}
+
+function admin_css(): string
+{
+    return '
         *{box-sizing:border-box} body{margin:0;font-family:Tajawal,Tahoma,sans-serif;background:#F7F5EF;color:#183B35}
         a{color:#183B35} .layout{display:flex;min-height:100vh}
-        .sidebar{width:280px;background:#102924;color:#fff;padding:22px 14px;flex-shrink:0}
+        .sidebar{width:270px;background:#102924;color:#fff;padding:22px 14px;flex-shrink:0}
         .brand{font-weight:800;letter-spacing:1px;padding:8px 12px 18px;color:#D8C39B}
-        .sidebar a{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.82);text-decoration:none;padding:10px 12px;border-radius:12px;margin-bottom:4px;font-size:14px}
-        .sidebar a.active,.sidebar a:hover{background:rgba(216,195,155,.16);color:#EADBC0}
+        .sidebar a,.sidebar .linklike{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.82);text-decoration:none;padding:9px 12px;border-radius:12px;margin-bottom:3px;font-size:14px;width:100%;background:none;border:0;font-family:inherit;cursor:pointer;text-align:start}
+        .sidebar a.active,.sidebar a:hover,.sidebar .linklike:hover{background:rgba(216,195,155,.16);color:#EADBC0}
+        .badge{margin-inline-start:auto;background:#D8C39B;color:#102924;border-radius:999px;padding:1px 8px;font-size:12px}
         .content{flex:1;padding:28px;min-width:0}
         .top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
         h1{font-size:28px;margin:0} h2{margin:0 0 8px}
-        .card{background:#fff;border:1px solid rgba(216,195,155,.45);border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px -24px rgba(24,59,53,.8)}
+        .card{background:#fff;border:1px solid rgba(216,195,155,.45);border-radius:18px;padding:18px 20px;box-shadow:0 12px 30px -24px rgba(24,59,53,.8);margin-bottom:16px}
         label{display:block;font-weight:800;margin:14px 0 6px;font-size:14px}
-        input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],textarea,select{width:100%;padding:11px 12px;border:1px solid #e6e1d6;border-radius:12px;font-family:inherit;background:#fff;color:#183B35}
+        input[type=text],input[type=number],input[type=password],input[type=email],input[type=date],input[type=search],textarea,select{width:100%;padding:11px 12px;border:1px solid #e6e1d6;border-radius:12px;font-family:inherit;background:#fff;color:#183B35;font-size:14px}
         textarea{min-height:110px;resize:vertical}
-        .btn,.btn:visited{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#D8C39B,#C4A976);color:#102924;border:0;border-radius:999px;padding:10px 16px;font-weight:800;cursor:pointer;text-decoration:none}
+        .btn,.btn:visited{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#D8C39B,#C4A976);color:#102924;border:0;border-radius:999px;padding:10px 16px;font-weight:800;cursor:pointer;text-decoration:none;font-family:inherit;font-size:14px}
         .btn.secondary{background:#183B35;color:#fff}.btn.ghost{background:transparent;color:#183B35;border:1px solid rgba(24,59,53,.2)}
         .btn.danger{background:#8d2f2f;color:#fff}.btn.small{padding:6px 10px;font-size:12px}
-        table{width:100%;border-collapse:collapse} th,td{padding:10px 8px;border-bottom:1px solid #eee;text-align:right;vertical-align:middle;font-size:14px}
-        .flash{padding:12px 14px;border-radius:12px;margin-bottom:14px}.ok{background:#e7f6ee}.err{background:#fdecec}
+        table{width:100%;border-collapse:collapse} th,td{padding:10px 8px;border-bottom:1px solid #eee;text-align:start;vertical-align:middle;font-size:14px}
+        .flash{padding:12px 14px;border-radius:12px;margin-bottom:14px}.ok{background:#e7f6ee}.err{background:#fdecec}.warn{background:#fff6e0}
         .hint{color:#6d746f;font-size:12px;font-weight:500;margin-top:4px}
         .intro{color:#405650;margin:0 0 16px}
         .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -65,114 +91,178 @@ function admin_header(string $title, string $active): void
         .stat strong{display:block;font-size:28px}
         .check{display:flex;align-items:center;gap:8px;font-weight:700}
         .check input{width:auto}
+        .langbar{position:sticky;top:0;z-index:5;display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:#F7F5EF;padding:10px 0;margin:-6px 0 6px;font-size:13px;font-weight:700}
+        .langbar button{border:1px solid #eadfca;background:#fff;border-radius:999px;padding:6px 12px;cursor:pointer;font-family:inherit;font-weight:700}
+        .langbar button.on{background:#183B35;color:#fff;border-color:#183B35}
+        .lang-tag{display:inline-block;font-size:11px;background:#EADBC0;color:#102924;border-radius:6px;padding:1px 6px;margin-inline-start:6px;font-weight:700}
+        .ref{font-size:12px;color:#6d746f;background:#faf8f3;border:1px dashed #eadfca;border-radius:8px;padding:6px 8px;margin-bottom:6px;white-space:pre-line;max-height:90px;overflow:auto}
+        body[data-edit-lang="ar"] .lang-pane:not([data-lang="ar"]),
+        body[data-edit-lang="fr"] .lang-pane:not([data-lang="fr"]),
+        body[data-edit-lang="en"] .lang-pane:not([data-lang="en"]){display:none}
+        .missing{color:#8d2f2f;font-size:12px;font-weight:700}
+        .checklist li{margin:6px 0}
+        .pager{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+        .pager a,.pager span{padding:6px 10px;border-radius:8px;border:1px solid #eadfca;background:#fff;text-decoration:none;font-size:13px}
+        .pager span{background:#183B35;color:#fff}
         @media(max-width:900px){.layout{display:block}.sidebar{width:auto}.content{padding:16px}}
-    </style></head><body><div class="layout"><aside class="sidebar"><div class="brand">GOOD FLY</div>';
-    foreach (admin_menu() as $item) {
-        $class = $item[3] === $active ? ' class="active"' : '';
-        echo '<a' . $class . ' href="' . h($item[0]) . '"><i class="fa-solid ' . h($item[2]) . '"></i><span>' . h($item[1]) . '</span></a>';
-    }
-    echo '<a href="../index.php" target="_blank"><i class="fa-solid fa-arrow-up-right-from-square"></i><span>عرض الموقع</span></a>';
-    echo '<a href="logout.php"><i class="fa-solid fa-right-from-bracket"></i><span>خروج (' . h($admin['username'] ?? '') . ')</span></a>';
-    echo '</aside><main class="content"><div class="top"><h1>' . h($title) . '</h1></div>';
-    if ($flash) {
-        $class = ($flash['type'] ?? '') === 'ok' ? 'ok' : 'err';
-        echo '<div class="flash ' . $class . '">' . h($flash['message'] ?? '') . '</div>';
-    }
+    ';
 }
 
-function admin_footer(): void
+function admin_js(): string
 {
-    echo '</main></div></body></html>';
+    return '
+        (function () {
+            var saved = localStorage.getItem("gfEditLang") || "ar";
+            function setLang(lang) {
+                document.body.dataset.editLang = lang;
+                localStorage.setItem("gfEditLang", lang);
+                document.querySelectorAll(".langbar button").forEach(function (b) { b.classList.toggle("on", b.dataset.lang === lang); });
+            }
+            document.querySelectorAll(".langbar button").forEach(function (b) {
+                b.addEventListener("click", function () { setLang(b.dataset.lang); });
+            });
+            if (document.querySelector(".langbar")) setLang(saved);
+        })();
+    ';
 }
 
-function admin_field(string $name, array $field, $value): void
+function edit_lang_switch(): string
+{
+    $html = '<div class="langbar"><span>لغة التحرير:</span>';
+    foreach (languages() as $code => $info) {
+        $html .= '<button type="button" data-lang="' . h($code) . '">' . h($info['name']) . '</button>';
+    }
+    return $html . '<span class="hint">الحقول غير المترجمة تظهر للزائر بالعربية.</span></div>';
+}
+
+/**
+ * Renders one field. $nameFor($lang) returns the input name for a language,
+ * $values holds ['ar' => ..., 'fr' => ..., 'en' => ...].
+ */
+function render_field(string $id, array $field, callable $nameFor, array $values, string $fileName = ''): void
 {
     $type = $field['type'] ?? 'text';
-    echo '<label for="' . h($name) . '">' . h($field['label'] ?? $name) . '</label>';
-    if ($type === 'textarea' || $type === 'html') {
-        echo '<textarea id="' . h($name) . '" name="' . h($name) . '">' . h((string) $value) . '</textarea>';
-    } elseif ($type === 'select') {
-        echo '<select id="' . h($name) . '" name="' . h($name) . '">';
-        foreach ($field['options'] as $optionValue => $optionLabel) {
-            $selected = (string) $value === (string) $optionValue ? ' selected' : '';
-            echo '<option value="' . h($optionValue) . '"' . $selected . '>' . h($optionLabel) . '</option>';
+    $translatable = !empty($field['translatable']);
+    $label = $field['label'] ?? $id;
+    $arabic = (string) ($values['ar'] ?? '');
+
+    if ($type === 'checkbox' || $type === 'bool') {
+        $checked = $arabic === '1' ? ' checked' : '';
+        echo '<label class="check"><input type="checkbox" id="' . h($id) . '" name="' . h($nameFor('ar')) . '" value="1"' . $checked . '> ' . h($label) . '</label>';
+        if (!empty($field['hint'])) {
+            echo '<div class="hint">' . h($field['hint']) . '</div>';
         }
-        echo '</select>';
-    } elseif ($type === 'checkbox') {
-        $checked = (string) $value === '1' || $value === 1 || $value === true ? ' checked' : '';
-        echo '<label class="check"><input type="checkbox" id="' . h($name) . '" name="' . h($name) . '" value="1"' . $checked . '> ظاهر</label>';
-    } elseif ($type === 'image') {
-        echo '<input id="' . h($name) . '" type="text" name="' . h($name) . '" value="' . h((string) $value) . '" placeholder="رابط الصورة أو ارفع ملفاً">';
-        echo '<input type="file" name="file_' . h($name) . '" accept="image/*" style="margin-top:8px">';
-        if ((string) $value !== '') {
-            echo '<div style="margin-top:8px"><img class="thumb" src="' . h(asset_url((string) $value)) . '" alt=""></div>';
+        return;
+    }
+
+    $langs = $translatable ? array_keys(languages()) : [default_lang()];
+    foreach ($langs as $lang) {
+        $value = (string) ($values[$lang] ?? '');
+        $inputId = $id . ($lang === default_lang() ? '' : '_' . $lang);
+        $dir = languages()[$lang]['dir'];
+        if ($translatable) {
+            echo '<div class="lang-pane" data-lang="' . h($lang) . '">';
         }
-    } else {
-        $inputType = $type === 'number' ? 'number' : ($type === 'color' ? 'color' : 'text');
-        echo '<input id="' . h($name) . '" type="' . h($inputType) . '" name="' . h($name) . '" value="' . h((string) $value) . '">';
+        echo '<label for="' . h($inputId) . '">' . h($label);
+        if ($translatable) {
+            echo '<span class="lang-tag">' . h(languages()[$lang]['name']) . '</span>';
+            if ($lang !== default_lang() && trim($value) === '' && trim($arabic) !== '') {
+                echo ' <span class="missing">غير مترجم</span>';
+            }
+        }
+        echo '</label>';
+        if ($translatable && $lang !== default_lang() && trim($arabic) !== '') {
+            echo '<div class="ref" dir="rtl">' . h(mb_strimwidth($arabic, 0, 400, '…')) . '</div>';
+        }
+        $name = h($nameFor($lang));
+        if (in_array($type, ['textarea', 'html', 'lines'], true)) {
+            echo '<textarea id="' . h($inputId) . '" name="' . $name . '" dir="' . $dir . '">' . h($value) . '</textarea>';
+        } elseif ($type === 'select') {
+            echo '<select id="' . h($inputId) . '" name="' . $name . '">';
+            foreach ($field['options'] ?? [] as $optionValue => $optionLabel) {
+                $selected = $value === (string) $optionValue ? ' selected' : '';
+                echo '<option value="' . h($optionValue) . '"' . $selected . '>' . h($optionLabel) . '</option>';
+            }
+            echo '</select>';
+        } elseif ($type === 'image') {
+            echo '<input id="' . h($inputId) . '" type="text" name="' . $name . '" value="' . h($value) . '" dir="ltr" placeholder="رابط الصورة أو ارفع ملفاً">';
+            echo '<input type="file" name="' . h($fileName !== '' ? $fileName : 'file_' . $id) . '" accept="image/jpeg,image/png,image/webp,image/gif" style="margin-top:8px">';
+            if ($value !== '') {
+                echo '<div style="margin-top:8px"><img class="thumb" src="' . h(asset_url($value)) . '" alt=""></div>';
+            }
+        } elseif ($type === 'color') {
+            $color = valid_hex($value) ? $value : '#183B35';
+            echo '<input id="' . h($inputId) . '" type="color" name="' . $name . '" value="' . h($color) . '" style="height:48px;width:120px;padding:4px">';
+        } elseif ($type === 'password') {
+            $placeholder = $value !== '' ? 'محفوظة — اكتب لتغييرها' : '';
+            echo '<input id="' . h($inputId) . '" type="password" name="' . $name . '" value="" autocomplete="new-password" placeholder="' . h($placeholder) . '">';
+        } else {
+            $inputType = $type === 'number' ? 'number' : 'text';
+            $max = !empty($field['max']) ? ' maxlength="' . (int) $field['max'] . '"' : '';
+            echo '<input id="' . h($inputId) . '" type="' . $inputType . '" name="' . $name . '" value="' . h($value) . '" dir="' . $dir . '"' . $max . '>';
+        }
+        if ($translatable) {
+            echo '</div>';
+        }
     }
     if (!empty($field['hint'])) {
         echo '<div class="hint">' . h($field['hint']) . '</div>';
     }
 }
 
-function collect_field_value(string $name, array $field)
+/** Renders a field bound to a database record (collections, packages, cities). */
+function record_field(string $name, array $field, array $record): void
 {
-    $type = $field['type'] ?? 'text';
-    if ($type === 'checkbox') {
-        return isset($_POST[$name]) ? 1 : 0;
+    $values = ['ar' => (string) ($record[$name] ?? '')];
+    foreach (extra_languages() as $lang) {
+        $values[$lang] = (string) ($record[$name . '_' . $lang] ?? '');
     }
-    if ($type === 'image') {
-        $uploaded = save_upload('file_' . $name);
-        if ($uploaded) {
-            return $uploaded;
-        }
+    if (($field['type'] ?? '') === 'checkbox') {
+        $values['ar'] = (string) (int) ($record[$name] ?? 0);
     }
-    $value = trim((string) ($_POST[$name] ?? ''));
-    if ($type === 'number') {
-        return (int) $value;
-    }
-    if ($type === 'html') {
-        return clean_rich_text($value);
-    }
-    if ($type === 'select') {
-        $options = $field['options'] ?? [];
-        if (!array_key_exists($value, $options)) {
-            throw new RuntimeException('قيمة غير مسموحة في حقل ' . ($field['label'] ?? $name));
-        }
-    }
-    if (!empty($field['required']) && $value === '') {
-        throw new RuntimeException('الحقل «' . ($field['label'] ?? $name) . '» مطلوب.');
-    }
-    if ($type === 'color' && !preg_match('/^#[0-9a-fA-F]{6}$/', $value)) {
-        throw new RuntimeException('لون غير صالح في حقل ' . ($field['label'] ?? $name));
-    }
-    return $value;
+    render_field($name, $field, static function (string $lang) use ($name) {
+        return $lang === default_lang() ? $name : $name . '_' . $lang;
+    }, $values, 'file_' . $name);
 }
 
-function move_collection_row(string $table, int $id, string $direction): void
+function has_translatable(array $fields): bool
 {
-    $allowed = [
-        'nav_links', 'hero_slides', 'stats', 'about_points', 'package_categories', 'filter_options',
-        'services', 'calc_tiers', 'guides', 'testimonials', 'footer_links', 'translations', 'packages', 'cities',
-    ];
-    if (!in_array($table, $allowed, true)) {
-        return;
+    foreach ($fields as $field) {
+        if (!empty($field['translatable'])) {
+            return true;
+        }
     }
-    $ids = array_map('intval', array_column(rows("SELECT id FROM {$table} ORDER BY sort_order ASC, id ASC"), 'id'));
-    $index = array_search($id, $ids, true);
-    if ($index === false) {
-        return;
+    return false;
+}
+
+function blank_record(array $fields): array
+{
+    $record = ['id' => 0];
+    foreach ($fields as $name => $field) {
+        $type = $field['type'] ?? 'text';
+        if ($type === 'checkbox') {
+            $record[$name] = 1;
+        } elseif ($type === 'select') {
+            $record[$name] = (string) array_key_first($field['options'] ?? []);
+        } elseif ($name === 'stars') {
+            $record[$name] = 5;
+        } else {
+            $record[$name] = '';
+        }
     }
-    $swap = $direction === 'up' ? $index - 1 : $index + 1;
-    if (!isset($ids[$swap])) {
-        return;
+    return $record;
+}
+
+function move_buttons(int $id, string $extra = ''): string
+{
+    $html = '';
+    foreach (['up' => 'أعلى', 'down' => 'أسفل'] as $direction => $label) {
+        $html .= '<form method="post">' . csrf_field() . $extra . '<input type="hidden" name="action" value="move"><input type="hidden" name="direction" value="' . $direction . '"><input type="hidden" name="id" value="' . $id . '"><button class="btn small ghost" type="submit" aria-label="' . $label . '">' . $label . '</button></form>';
     }
-    $temp = $ids[$index];
-    $ids[$index] = $ids[$swap];
-    $ids[$swap] = $temp;
-    $statement = db()->prepare("UPDATE {$table} SET sort_order = ? WHERE id = ?");
-    foreach ($ids as $position => $rowId) {
-        $statement->execute([($position + 1) * 10, $rowId]);
-    }
+    return $html;
+}
+
+function delete_button(int $id, string $question): string
+{
+    return '<form method="post" onsubmit="return confirm(' . h(json_encode($question, JSON_UNESCAPED_UNICODE)) . ')">' . csrf_field() . '<input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="' . $id . '"><button class="btn small danger" type="submit">حذف</button></form>';
 }

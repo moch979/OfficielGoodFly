@@ -9,6 +9,70 @@ function app_config(): array
     return $config;
 }
 
+function app_debug(): bool
+{
+    return !empty(app_config()['debug']);
+}
+
+function project_root(): string
+{
+    return dirname(__DIR__);
+}
+
+function storage_path(string $relative = ''): string
+{
+    $dir = project_root() . '/storage';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    if (!is_file($dir . '/.htaccess')) {
+        @file_put_contents($dir . '/.htaccess', "Require all denied\n");
+    }
+    return $relative === '' ? $dir : $dir . '/' . ltrim($relative, '/');
+}
+
+function log_error(string $message): void
+{
+    $logs = storage_path('logs');
+    if (!is_dir($logs)) {
+        @mkdir($logs, 0775, true);
+    }
+    @file_put_contents($logs . '/app-' . date('Y-m') . '.log', '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL, FILE_APPEND | LOCK_EX);
+}
+
+function wants_json(): bool
+{
+    return defined('GF_JSON') && GF_JSON;
+}
+
+function register_error_handling(): void
+{
+    error_reporting(E_ALL);
+    ini_set('display_errors', app_debug() ? '1' : '0');
+    ini_set('log_errors', '1');
+
+    set_exception_handler(static function (Throwable $e): void {
+        log_error(get_class($e) . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+        if (!headers_sent()) {
+            http_response_code(500);
+        }
+        if (wants_json()) {
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+            }
+            echo json_encode(['ok' => false, 'message' => t('error_generic')], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+        if (app_debug()) {
+            echo '<pre>' . h($e->getMessage() . "\n" . $e->getTraceAsString()) . '</pre>';
+            return;
+        }
+        echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>Good Fly</title></head>';
+        echo '<body style="font-family:Tahoma,sans-serif;background:#F7F5EF;color:#183B35;padding:40px;text-align:center">';
+        echo '<h1>' . h(t('error_title')) . '</h1><p>' . h(t('error_generic')) . '</p></body></html>';
+    });
+}
+
 function db(): PDO
 {
     static $pdo = null;
@@ -17,12 +81,7 @@ function db(): PDO
     }
 
     $config = app_config();
-    $dsn = sprintf(
-        'mysql:host=%s;dbname=%s;charset=%s',
-        $config['host'],
-        $config['name'],
-        $config['charset']
-    );
+    $dsn = sprintf('mysql:host=%s;dbname=%s;charset=%s', $config['host'], $config['name'], $config['charset']);
 
     try {
         $pdo = new PDO($dsn, $config['user'], $config['pass'], [
@@ -30,8 +89,10 @@ function db(): PDO
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
         ]);
+        $pdo->exec("SET time_zone = '" . date('P') . "'");
     } catch (PDOException $e) {
-        install_required('تعذر الاتصال بقاعدة البيانات. ثبّت الموقع أولاً من صفحة التثبيت.');
+        log_error('DB connect: ' . $e->getMessage());
+        install_required('تعذر الاتصال بقاعدة البيانات. تحقق من بيانات الاتصال أو ثبّت الموقع من صفحة التثبيت.');
     }
 
     return $pdo;
@@ -40,24 +101,27 @@ function db(): PDO
 function boot(): void
 {
     try {
-        $rows = db()->query('SELECT skey, svalue FROM settings')->fetchAll(PDO::FETCH_KEY_PAIR);
+        db()->query('SELECT 1 FROM settings LIMIT 1');
     } catch (PDOException $e) {
         install_required('جداول الموقع غير موجودة بعد.');
     }
 
-    if (!$rows) {
+    run_migrations();
+    load_settings();
+
+    if (!$GLOBALS['SETTINGS']) {
         install_required('قاعدة البيانات فارغة.');
     }
-
-    $GLOBALS['SETTINGS'] = $rows;
-    ensure_design_settings();
 }
 
 function install_required(string $message): void
 {
     if (PHP_SAPI === 'cli') {
-        fwrite(STDERR, $message . PHP_EOL . "شغّل: php install.php" . PHP_EOL);
+        fwrite(STDERR, $message . PHP_EOL . 'شغّل: php install.php' . PHP_EOL);
         exit(1);
+    }
+    if (wants_json()) {
+        json_response(['ok' => false, 'message' => $message], 503);
     }
 
     $install = base_path() . '/install.php';
@@ -68,14 +132,6 @@ function install_required(string $message): void
     echo '<p><a href="' . h($install) . '">فتح صفحة التثبيت</a></p>';
     echo '</body></html>';
     exit;
-}
-
-function s(string $key, string $default = ''): string
-{
-    if (!isset($GLOBALS['SETTINGS'][$key]) || $GLOBALS['SETTINGS'][$key] === null) {
-        return $default;
-    }
-    return (string) $GLOBALS['SETTINGS'][$key];
 }
 
 function flag(string $key, bool $default = true): bool
@@ -96,10 +152,7 @@ function e(string $key, string $default = ''): string
 
 function raw_html(string $key, string $default = ''): string
 {
-    $html = s($key, $default);
-    $html = preg_replace('#<\s*script\b[^>]*>.*?<\s*/\s*script\s*>#is', '', $html) ?? $html;
-    $html = preg_replace('#\son\w+\s*=\s*(".*?"|\'.*?\'|[^\s>]+)#i', '', $html) ?? $html;
-    return $html;
+    return clean_rich_text(s($key, $default));
 }
 
 function nl(string $key, string $default = ''): string
@@ -118,13 +171,38 @@ function base_path(): string
 {
     $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '/index.php');
     $dir = rtrim(dirname($script), '/.');
-    if (substr($dir, -6) === '/admin') {
-        $dir = substr($dir, 0, -6);
-    }
-    if (substr($dir, -4) === '/api') {
-        $dir = substr($dir, 0, -4);
+    foreach (['/admin', '/api'] as $suffix) {
+        if (substr($dir, -strlen($suffix)) === $suffix) {
+            $dir = substr($dir, 0, -strlen($suffix));
+        }
     }
     return $dir === '/' ? '' : $dir;
+}
+
+function request_origin(): string
+{
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    if (!preg_match('/^[A-Za-z0-9.\-:\[\]]+$/', $host)) {
+        $host = 'localhost';
+    }
+    return ($https ? 'https' : 'http') . '://' . $host;
+}
+
+function is_https(): bool
+{
+    return strpos(request_origin(), 'https://') === 0;
+}
+
+/** Absolute site root without trailing slash, e.g. https://goodfly.ma */
+function site_url(): string
+{
+    $configured = rtrim(trim(s('site_url')), '/');
+    if ($configured !== '' && preg_match('#^https?://#i', $configured)) {
+        return $configured;
+    }
+    return request_origin() . base_path();
 }
 
 function asset_url(string $path): string
@@ -136,17 +214,37 @@ function asset_url(string $path): string
     return base_path() . '/' . ltrim($path, '/');
 }
 
-function project_root(): string
+function absolute_url(string $path): string
 {
-    return dirname(__DIR__);
+    $url = asset_url($path);
+    if ($url === '' || preg_match('#^https?://#i', $url)) {
+        return $url;
+    }
+    if (strpos($url, '//') === 0) {
+        return 'https:' . $url;
+    }
+    return request_origin() . $url;
+}
+
+/** Keeps admin-entered links to schemes that cannot run script. */
+function safe_url(string $url): string
+{
+    $url = trim($url);
+    if ($url === '') {
+        return '#';
+    }
+    if (preg_match('#^(https?:|mailto:|tel:|\#|/|\./|\.\./)#i', $url)) {
+        return $url;
+    }
+    if (!preg_match('#^[a-z][a-z0-9+.\-]*:#i', $url)) {
+        return $url;
+    }
+    return '#';
 }
 
 function json_for_script($data): string
 {
-    $json = json_encode(
-        $data,
-        JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
-    );
+    $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     return $json === false ? 'null' : $json;
 }
 
@@ -163,11 +261,16 @@ function csrf_field(): string
     return '<input type="hidden" name="csrf" value="' . h(csrf_token()) . '">';
 }
 
+function csrf_valid(): bool
+{
+    $sent = $_POST['csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+    $known = $_SESSION['csrf'] ?? '';
+    return is_string($sent) && is_string($known) && $known !== '' && hash_equals($known, $sent);
+}
+
 function csrf_verify(): void
 {
-    $sent = $_POST['csrf'] ?? '';
-    $known = $_SESSION['csrf'] ?? '';
-    if (!is_string($sent) || !is_string($known) || $known === '' || !hash_equals($known, $sent)) {
+    if (!csrf_valid()) {
         http_response_code(400);
         exit('انتهت صلاحية النموذج. أعد تحميل الصفحة ثم حاول مرة أخرى.');
     }
@@ -194,25 +297,43 @@ function redirect(string $url): void
     exit;
 }
 
+const ADMIN_IDLE_SECONDS = 4 * 3600;
+
 function current_admin(): ?array
 {
-    if (empty($_SESSION['admin_id'])) {
-        return null;
+    static $cached = false;
+    if ($cached !== false) {
+        return $cached;
     }
+    if (empty($_SESSION['admin_id'])) {
+        return $cached = null;
+    }
+    $last = (int) ($_SESSION['admin_seen'] ?? 0);
+    if ($last > 0 && time() - $last > ADMIN_IDLE_SECONDS) {
+        unset($_SESSION['admin_id'], $_SESSION['admin_seen']);
+        return $cached = null;
+    }
+    $_SESSION['admin_seen'] = time();
     $statement = db()->prepare('SELECT id, username FROM admins WHERE id = ?');
     $statement->execute([(int) $_SESSION['admin_id']]);
     $admin = $statement->fetch();
-    return $admin ?: null;
+    return $cached = ($admin ?: null);
 }
 
 function require_admin(): array
 {
     $admin = current_admin();
     if (!$admin) {
+        if (wants_json()) {
+            json_response(['ok' => false, 'message' => 'يلزم تسجيل الدخول من جديد.'], 401);
+        }
         redirect('login.php');
     }
     return $admin;
 }
+
+const UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
+const UPLOAD_MAX_WIDTH = 2000;
 
 function save_upload(string $inputName): ?string
 {
@@ -227,8 +348,8 @@ function save_upload(string $inputName): ?string
     if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
         throw new RuntimeException('تعذر رفع الصورة.');
     }
-    if (($file['size'] ?? 0) > 5 * 1024 * 1024) {
-        throw new RuntimeException('حجم الصورة يجب ألا يتجاوز 5 ميغابايت.');
+    if (($file['size'] ?? 0) > UPLOAD_MAX_BYTES) {
+        throw new RuntimeException('حجم الصورة يجب ألا يتجاوز 8 ميغابايت.');
     }
 
     $info = @getimagesize($file['tmp_name']);
@@ -242,46 +363,42 @@ function save_upload(string $inputName): ?string
         throw new RuntimeException('تعذر إنشاء مجلد الصور.');
     }
 
-    $filename = date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.' . $allowed[$info[2]];
-    $target = $directory . '/' . $filename;
-    if (!move_uploaded_file($file['tmp_name'], $target)) {
-        throw new RuntimeException('تعذر حفظ الصورة.');
+    $base = date('YmdHis') . '-' . bin2hex(random_bytes(4));
+    $keepsTransparency = in_array($info[2], [IMAGETYPE_PNG, IMAGETYPE_GIF], true);
+    if (image_tools_available() && !$keepsTransparency) {
+        $target = $directory . '/' . $base . '.jpg';
+        if (image_resize_to_jpeg($file['tmp_name'], $target, UPLOAD_MAX_WIDTH, 80)) {
+            return 'uploads/' . $base . '.jpg';
+        }
     }
 
+    $filename = $base . '.' . $allowed[$info[2]];
+    if (!move_uploaded_file($file['tmp_name'], $directory . '/' . $filename)) {
+        throw new RuntimeException('تعذر حفظ الصورة.');
+    }
     return 'uploads/' . $filename;
 }
 
 function clean_rich_text(string $html): string
 {
-    $html = preg_replace('#<\s*script\b[^>]*>.*?<\s*/\s*script\s*>#is', '', $html) ?? $html;
+    $html = strip_tags($html, '<strong><b><em><i><u><br><span><a><p><ul><ol><li>');
     $html = preg_replace('#\son\w+\s*=\s*(".*?"|\'.*?\'|[^\s>]+)#i', '', $html) ?? $html;
+    $html = preg_replace('#\s(style|class|id)\s*=\s*(".*?"|\'.*?\'|[^\s>]+)#i', '', $html) ?? $html;
+    $html = preg_replace_callback('#\shref\s*=\s*("([^"]*)"|\'([^\']*)\'|([^\s>]+))#i', static function ($m) {
+        $url = $m[2] !== '' ? $m[2] : ($m[3] !== '' ? $m[3] : ($m[4] ?? ''));
+        return ' href="' . h(safe_url(html_entity_decode($url, ENT_QUOTES, 'UTF-8'))) . '"';
+    }, $html) ?? $html;
     return trim($html);
+}
+
+function wa_number(): string
+{
+    return preg_replace('/\D+/', '', s('wa_number')) ?? '';
 }
 
 function wa_link(string $message): string
 {
-    $number = preg_replace('/\D+/', '', s('wa_number'));
-    return 'https://wa.me/' . $number . '?text=' . rawurlencode($message);
-}
-
-function rate_limit(string $bucket, int $max, int $windowSeconds): bool
-{
-    $now = time();
-    $key = 'rate_' . $bucket;
-    $times = $_SESSION[$key] ?? [];
-    if (!is_array($times)) {
-        $times = [];
-    }
-    $times = array_values(array_filter($times, static function ($time) use ($now, $windowSeconds) {
-        return is_int($time) && ($now - $time) < $windowSeconds;
-    }));
-    if (count($times) >= $max) {
-        $_SESSION[$key] = $times;
-        return false;
-    }
-    $times[] = $now;
-    $_SESSION[$key] = $times;
-    return true;
+    return 'https://wa.me/' . wa_number() . '?text=' . rawurlencode($message);
 }
 
 function json_response(array $payload, int $status = 200): void
@@ -290,4 +407,15 @@ function json_response(array $payload, int $status = 200): void
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($payload, JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+function client_ip(): string
+{
+    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+    return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '0.0.0.0';
+}
+
+function str_limit(string $value, int $max): string
+{
+    return mb_substr($value, 0, $max);
 }

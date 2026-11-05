@@ -1,15 +1,37 @@
 <?php
 
-date_default_timezone_set('Asia/Riyadh');
+/**
+ * One-time installer. Runs only while the database is empty; on an installed
+ * site it refuses to do anything.
+ *   Web: open /install.php and choose the admin username and password.
+ *   CLI: php install.php <username> [password]   (a password is generated if omitted)
+ */
 
 $config = require __DIR__ . '/config.php';
+date_default_timezone_set($config['timezone'] ?? 'Africa/Casablanca');
 $isCli = PHP_SAPI === 'cli';
-$defaultUser = 'admin';
-$defaultPass = 'GoodFly@2026';
+$generatedPassword = false;
 
-function install_out(bool $isCli, string $html, ?string $text = null): void
+function install_page(string $title, string $body, int $status = 200): void
 {
-    echo $isCli ? (($text ?? trim(strip_tags($html))) . PHP_EOL) : $html;
+    http_response_code($status);
+    echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>';
+    echo '<style>body{font-family:Tahoma,sans-serif;background:#102924;color:#F7F5EF;padding:40px}.box{max-width:560px;margin:auto;background:#183B35;border:1px solid #D8C39B;border-radius:20px;padding:28px}h1{color:#D8C39B;margin-top:0}label{display:block;margin:12px 0 6px;font-weight:bold}input{width:100%;padding:11px;border-radius:10px;border:0;box-sizing:border-box}button{margin-top:18px;padding:12px 20px;border:0;border-radius:999px;background:#D8C39B;color:#102924;font-weight:bold;cursor:pointer}.err{background:#5c2020;padding:10px;border-radius:10px}a{color:#D8C39B}</style>';
+    echo '</head><body><div class="box"><h1>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</h1>' . $body . '</div></body></html>';
+    exit;
+}
+
+function install_form(string $error = ''): void
+{
+    $body = '<p>اختر اسم مستخدم وكلمة مرور قوية لحساب الإدارة. لا توجد كلمة مرور افتراضية.</p>';
+    if ($error !== '') {
+        $body .= '<p class="err">' . htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . '</p>';
+    }
+    $body .= '<form method="post"><label for="u">اسم المستخدم</label><input id="u" name="username" required pattern="[A-Za-z0-9_.\-]{3,40}" autocomplete="username">';
+    $body .= '<label for="p">كلمة المرور (10 أحرف على الأقل)</label><input id="p" type="password" name="password" required minlength="10" autocomplete="new-password">';
+    $body .= '<label for="c">تأكيد كلمة المرور</label><input id="c" type="password" name="confirm" required minlength="10" autocomplete="new-password">';
+    $body .= '<button type="submit">تثبيت الموقع</button></form>';
+    install_page('تثبيت Good Fly', $body);
 }
 
 try {
@@ -32,6 +54,44 @@ try {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]
     );
+
+    $installed = false;
+    try {
+        $installed = (int) $pdo->query('SELECT COUNT(*) FROM settings')->fetchColumn() > 0;
+    } catch (PDOException $e) {
+        $installed = false;
+    }
+    if ($installed) {
+        if ($isCli) {
+            echo 'الموقع مثبت مسبقاً. لم يتغير شيء.' . PHP_EOL;
+            exit(0);
+        }
+        install_page('الموقع مثبت مسبقاً', '<p>صفحة التثبيت معطلة لأن قاعدة البيانات تحتوي على بيانات. يُفضّل حذف ملف install.php من الخادم.</p><p><a href="admin/login.php">دخول الإدارة</a></p>', 403);
+    }
+
+    if ($isCli) {
+        $adminUser = (string) ($argv[1] ?? 'admin');
+        $adminPass = (string) ($argv[2] ?? '');
+        if ($adminPass === '') {
+            $adminPass = rtrim(strtr(base64_encode(random_bytes(12)), '+/', 'Kq'), '=');
+            $generatedPassword = true;
+        }
+    } else {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            install_form();
+        }
+        $adminUser = trim((string) ($_POST['username'] ?? ''));
+        $adminPass = (string) ($_POST['password'] ?? '');
+        if ($adminPass !== (string) ($_POST['confirm'] ?? '')) {
+            install_form('تأكيد كلمة المرور غير مطابق.');
+        }
+    }
+    if (!preg_match('/^[A-Za-z0-9_.\-]{3,40}$/', $adminUser)) {
+        $isCli ? exit("اسم المستخدم: 3 إلى 40 حرفاً إنجليزياً أو أرقاماً.\n") : install_form('اسم المستخدم: 3 إلى 40 حرفاً إنجليزياً أو أرقاماً بلا مسافات.');
+    }
+    if (strlen($adminPass) < 10) {
+        $isCli ? exit("كلمة المرور 10 أحرف على الأقل.\n") : install_form('كلمة المرور 10 أحرف على الأقل.');
+    }
 
     $tables = [
         "CREATE TABLE IF NOT EXISTS admins (
@@ -388,7 +448,7 @@ try {
         ['show_testimonials', '1', 'visibility', 'آراء العملاء', 'bool', ''],
         ['show_newsletter', '1', 'visibility', 'النشرة البريدية', 'bool', ''],
         ['show_whatsapp', '1', 'visibility', 'زر واتساب العائم', 'bool', ''],
-        ['password_changed', '0', 'system', 'تم تغيير كلمة المرور', 'bool', ''],
+        ['password_changed', '1', 'system', 'تم تغيير كلمة المرور', 'bool', ''],
     ];
 
     $pdo->beginTransaction();
@@ -401,7 +461,7 @@ try {
     }
 
     $pdo->prepare('INSERT INTO admins (username, password_hash) VALUES (?, ?)')
-        ->execute([$defaultUser, password_hash($defaultPass, PASSWORD_DEFAULT)]);
+        ->execute([$adminUser, password_hash($adminPass, PASSWORD_DEFAULT)]);
 
     $nav = $pdo->prepare('INSERT INTO nav_links (label_ar, label_en, label_fr, href, sort_order) VALUES (?, ?, ?, ?, ?)');
     $navRows = [
@@ -595,32 +655,28 @@ try {
         mkdir($uploads, 0775, true);
     }
 
+    require_once __DIR__ . '/includes/functions.php';
+    require_once __DIR__ . '/includes/i18n.php';
+    require_once __DIR__ . '/includes/migrations.php';
+    require_once __DIR__ . '/includes/design.php';
+    run_migrations();
+
     if ($isCli) {
-        echo "تم التثبيت بنجاح." . PHP_EOL;
-        echo "الموقع: /goodfly/index.php" . PHP_EOL;
-        echo "الإدارة: /goodfly/admin/login.php" . PHP_EOL;
-        echo "المستخدم: {$defaultUser}" . PHP_EOL;
-        echo "كلمة المرور: {$defaultPass}" . PHP_EOL;
+        echo 'تم التثبيت بنجاح.' . PHP_EOL;
+        echo 'المستخدم: ' . $adminUser . PHP_EOL;
+        if ($generatedPassword) {
+            echo 'كلمة المرور المولّدة (احفظها الآن، لن تظهر مجدداً): ' . $adminPass . PHP_EOL;
+        }
         exit(0);
     }
 
-    echo '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تم التثبيت</title></head>';
-    echo '<body style="font-family:Tahoma,sans-serif;background:#102924;color:#F7F5EF;padding:40px">';
-    echo '<div style="max-width:640px;margin:auto;background:#183B35;border:1px solid #D8C39B;border-radius:20px;padding:28px">';
-    echo '<h1 style="color:#D8C39B">تم ربط Good Fly بقاعدة البيانات</h1>';
-    echo '<p>اسم المستخدم: <strong>' . htmlspecialchars($defaultUser, ENT_QUOTES, 'UTF-8') . '</strong></p>';
-    echo '<p>كلمة المرور: <strong>' . htmlspecialchars($defaultPass, ENT_QUOTES, 'UTF-8') . '</strong></p>';
-    echo '<p>غيّر كلمة المرور بعد أول دخول.</p>';
-    echo '<p><a style="color:#D8C39B" href="index.php">فتح الموقع</a> — <a style="color:#D8C39B" href="admin/login.php">دخول الإدارة</a></p>';
-    echo '</div></body></html>';
+    install_page('تم تثبيت Good Fly', '<p>تم إنشاء قاعدة البيانات وحساب الإدارة <strong>' . htmlspecialchars($adminUser, ENT_QUOTES, 'UTF-8') . '</strong>.</p><p>احذف ملف install.php من الخادم الآن.</p><p><a href="index.php">فتح الموقع</a> — <a href="admin/login.php">دخول الإدارة</a></p>');
 } catch (Throwable $e) {
     if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
     if (!$isCli) {
-        http_response_code(500);
-        echo '<!DOCTYPE html><html lang="ar" dir="rtl"><meta charset="UTF-8"><body style="font-family:Tahoma;padding:32px">';
-        echo '<h1>تعذر التثبيت</h1><pre>' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</pre></body></html>';
+        install_page('تعذر التثبيت', '<p>تحقق من بيانات قاعدة البيانات في config.local.php.</p><pre style="white-space:pre-wrap">' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</pre>', 500);
     } else {
         fwrite(STDERR, $e->getMessage() . PHP_EOL);
     }
