@@ -220,6 +220,7 @@ function city_fields(): array
 function setting_groups(): array
 {
     return [
+        'agency' => 'معلومات الوكالة',
         'general' => 'العنوان والمشاركة',
         'topbar' => 'الشريط العلوي',
         'brand' => 'الشعار',

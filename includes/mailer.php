@@ -16,7 +16,7 @@ function send_mail(string $to, string $subject, string $body, string $replyTo = 
     }
 
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    $fromName = '=?UTF-8?B?' . base64_encode(s('about_card_title', 'Good Fly Travel')) . '?=';
+    $fromName = '=?UTF-8?B?' . base64_encode(s('agency_name', s('about_card_title', 'Good Fly Travel'))) . '?=';
     $headers = [
         'From' => $fromName . ' <' . $from . '>',
         'MIME-Version' => '1.0',

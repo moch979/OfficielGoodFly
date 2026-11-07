@@ -12,26 +12,13 @@ $counts = [
 $latest = rows('SELECT id, full_name, phone, trip_type, status, lang, created_at FROM bookings ORDER BY id DESC LIMIT 6');
 $labels = booking_status_labels();
 
-/** Placeholder values shipped with the site that must be replaced before launch. */
-$placeholders = [
-    'license_number' => ['GF-8842/2026', 'رقم الترخيص في الشريط العلوي', 'settings.php?group=topbar'],
-    'footer_license_number' => ['GF-8842/2026', 'رقم الترخيص في التذييل', 'settings.php?group=footer'],
-    'footer_cr_number' => ['1010892231', 'رقم السجل التجاري', 'settings.php?group=footer'],
-    'phone_display' => ['+212 5 22 00 00 00', 'رقم الهاتف في الشريط العلوي', 'settings.php?group=topbar'],
-    'footer_phone' => ['+212 5 22 00 00 00', 'رقم الهاتف في التذييل', 'settings.php?group=footer'],
-    'wa_number' => ['212600000000', 'رقم واتساب', 'settings.php?group=modal'],
-    'footer_address' => ['شارع محمد الخامس، الدار البيضاء، المغرب', 'العنوان', 'settings.php?group=footer'],
-    'top_email' => ['info@goodfly-travel.com', 'البريد في الشريط العلوي', 'settings.php?group=topbar'],
-    'footer_email' => ['booking@goodfly-travel.com', 'بريد التذييل', 'settings.php?group=footer'],
-];
 $checklist = [];
 if (s('password_changed', '0') !== '1') {
     $checklist[] = ['كلمة مرور الإدارة ما زالت الافتراضية', 'account.php'];
 }
-foreach ($placeholders as $key => [$placeholder, $label, $link]) {
-    if (trim(s($key)) === $placeholder) {
-        $checklist[] = [$label . ' ما زال قيمة تجريبية', $link];
-    }
+$agencyLeft = agency_placeholders_left();
+if ($agencyLeft) {
+    $checklist[] = ['معلومات الوكالة ما زالت تجريبية: ' . implode('، ', $agencyLeft), 'agency.php'];
 }
 $sampleTestimonials = (int) db()->query("SELECT COUNT(*) FROM testimonials WHERE name IN ('أحمد المحمدي', 'د. سارة المنصوري', 'م. خالد البلوشي') AND is_active = 1")->fetchColumn();
 if ($sampleTestimonials > 0) {

@@ -342,6 +342,18 @@ function save_settings_groups(array $groups, array $source): void
         }
         if ($key === 'wa_number') {
             $value = preg_replace('/\D+/', '', $value) ?? '';
+            if ($value !== '' && (strlen($value) < 9 || strlen($value) > 15)) {
+                throw new RuntimeException('رقم واتساب يجب أن يكون بالصيغة الدولية، مثل 212612345678.');
+            }
+        }
+        if (in_array($key, ['phone_display', 'agency_phone2'], true) && $value !== '' && !preg_match('/^\+?[\d\s\-().]{6,30}$/', $value)) {
+            throw new RuntimeException('رقم الهاتف في «' . $field['label'] . '» غير صحيح.');
+        }
+        if ((strpos($key, 'social_') === 0 || $key === 'agency_map_url') && $value !== '' && !preg_match('#^https://[^\s]+$#i', $value)) {
+            throw new RuntimeException('الرابط في «' . $field['label'] . '» يجب أن يبدأ بـ https://');
+        }
+        if ($key === 'agency_ice' && $value !== '' && !preg_match('/^\d{15}$/', $value)) {
+            throw new RuntimeException('رقم ICE يتكون من 15 رقماً.');
         }
         if (mb_strlen($value) > 20000) {
             throw new RuntimeException('النص في «' . $field['label'] . '» طويل جداً.');
@@ -371,6 +383,32 @@ function save_settings_groups(array $groups, array $source): void
         db()->rollBack();
         throw $e;
     }
+}
+
+/** Shipped sample values that must be replaced with the agency's real details before launch. */
+function agency_placeholders(): array
+{
+    return [
+        'license_number' => ['GF-8842/2026', 'رقم الترخيص السياحي'],
+        'footer_cr_number' => ['1010892231', 'السجل التجاري'],
+        'phone_display' => ['+212 5 22 00 00 00', 'الهاتف الرئيسي'],
+        'wa_number' => ['212600000000', 'رقم واتساب'],
+        'footer_address' => ['شارع محمد الخامس، الدار البيضاء، المغرب', 'العنوان'],
+        'top_email' => ['info@goodfly-travel.com', 'البريد العام'],
+        'footer_email' => ['booking@goodfly-travel.com', 'بريد الحجوزات'],
+    ];
+}
+
+/** Agency fields still holding a sample value: key => label. */
+function agency_placeholders_left(): array
+{
+    $left = [];
+    foreach (agency_placeholders() as $key => [$placeholder, $label]) {
+        if (trim(s($key)) === $placeholder) {
+            $left[$key] = $label;
+        }
+    }
+    return $left;
 }
 
 function set_setting(string $key, string $value): void

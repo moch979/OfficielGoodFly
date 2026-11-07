@@ -5,6 +5,7 @@ function admin_menu(): array
     return [
         ['index.php', 'لوحة التحكم', 'fa-gauge-high', 'index.php'],
         ['designer.php', 'المصمم المرئي', 'fa-pen-ruler', 'designer.php'],
+        ['agency.php', 'معلومات الوكالة', 'fa-id-card', 'agency.php'],
         ['settings.php', 'كل النصوص والتفاصيل', 'fa-sliders', 'settings.php'],
         ['collection.php?type=nav', 'قائمة الموقع', 'fa-bars', 'nav'],
         ['collection.php?type=hero', 'صور الواجهة', 'fa-images', 'hero'],

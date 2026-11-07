@@ -199,8 +199,9 @@ function sanitize_design_input(array $input): array
 function designer_catalog(): array
 {
     return [
+        'agency' => ['label' => 'معلومات الوكالة', 'groups' => ['agency'], 'collections' => []],
         'general' => ['label' => 'عنوان الصفحة والمشاركة', 'groups' => ['general'], 'collections' => []],
-        'topbar' => ['label' => 'الشريط العلوي', 'groups' => ['topbar'], 'collections' => []],
+        'topbar' => ['label' => 'الشريط العلوي', 'groups' => ['topbar', 'agency'], 'collections' => []],
         'header' => ['label' => 'الشعار والقائمة', 'groups' => ['brand'], 'collections' => ['nav']],
         'hero' => ['label' => 'الواجهة', 'groups' => ['hero'], 'collections' => ['hero', 'filters']],
         'stats' => ['label' => 'أرقام الثقة', 'groups' => [], 'collections' => ['stats']],
@@ -211,7 +212,7 @@ function designer_catalog(): array
         'cities' => ['label' => 'مكة والمدينة', 'groups' => ['cities'], 'collections' => [], 'special' => 'cities'],
         'guide' => ['label' => 'دليل المناسك', 'groups' => ['guide'], 'collections' => ['guides']],
         'testimonials' => ['label' => 'آراء العملاء', 'groups' => ['testimonials'], 'collections' => ['testimonials']],
-        'footer' => ['label' => 'التذييل', 'groups' => ['footer'], 'collections' => ['footer']],
+        'footer' => ['label' => 'التذييل', 'groups' => ['footer', 'agency'], 'collections' => ['footer']],
         'booking' => ['label' => 'الحجز وواتساب', 'groups' => ['modal'], 'collections' => []],
     ];
 }

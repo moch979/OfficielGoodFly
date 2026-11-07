@@ -22,6 +22,47 @@ function tel_href(string $phone): string
     return 'tel:' . preg_replace('/[^\d+]/', '', $phone);
 }
 
+function agency_name(): string
+{
+    return s('agency_name', s('about_card_title', 'Good Fly Travel'));
+}
+
+/** Social accounts the admin filled in: network => [url, icon, label]. */
+function agency_socials(): array
+{
+    $networks = [
+        'facebook' => ['fa-facebook-f', 'Facebook'],
+        'instagram' => ['fa-instagram', 'Instagram'],
+        'tiktok' => ['fa-tiktok', 'TikTok'],
+        'youtube' => ['fa-youtube', 'YouTube'],
+    ];
+    $socials = [];
+    foreach ($networks as $network => [$icon, $label]) {
+        $url = trim(s('social_' . $network));
+        if ($url !== '' && preg_match('#^https://#i', $url)) {
+            $socials[$network] = ['url' => $url, 'icon' => $icon, 'label' => $label];
+        }
+    }
+    return $socials;
+}
+
+/** schema.org TravelAgency for the home page and as program provider. */
+function agency_schema(string $url): array
+{
+    return array_filter([
+        '@context' => 'https://schema.org',
+        '@type' => 'TravelAgency',
+        'name' => agency_name(),
+        'url' => $url,
+        'logo' => s('logo_image') !== '' ? absolute_url(s('logo_image')) : null,
+        'telephone' => s('phone_display') ?: null,
+        'email' => s('footer_email') ?: (s('top_email') ?: null),
+        'address' => s('footer_address') !== '' ? ['@type' => 'PostalAddress', 'streetAddress' => s('footer_address'), 'addressCountry' => 'MA'] : null,
+        'hasMap' => s('agency_map_url') ?: null,
+        'sameAs' => array_values(array_column(agency_socials(), 'url')) ?: null,
+    ]);
+}
+
 /**
  * $meta keys: title, description, canonical, alternates [lang => url], langLinks [lang => url],
  * ogImage, ogType, jsonLd (array), preloadImage, isHome (bool)
@@ -64,7 +105,7 @@ function public_header(array $meta): void
     <link rel="alternate" hreflang="x-default" href="<?= h($meta['alternates'][default_lang()]) ?>">
     <?php endif; ?>
     <meta property="og:type" content="<?= h($meta['ogType'] ?? 'website') ?>">
-    <meta property="og:site_name" content="<?= e('about_card_title', 'Good Fly Travel') ?>">
+    <meta property="og:site_name" content="<?= h(agency_name()) ?>">
     <meta property="og:title" content="<?= h($meta['title']) ?>">
     <meta property="og:description" content="<?= h($meta['description']) ?>">
     <meta property="og:url" content="<?= h($meta['canonical']) ?>">
@@ -247,9 +288,18 @@ function public_footer(array $app, bool $isHome): void
                     <?php endif; ?>
                     <p class="text-xs text-brand-ivory/70 leading-relaxed"><?= nl('footer_about') ?></p>
                     <div class="text-[11px] text-brand-gold/80 space-y-1 pt-2">
-                        <div><?= e('footer_license_label') ?> <strong><?= e('footer_license_number') ?></strong></div>
-                        <div><?= e('footer_cr_label') ?> <strong><?= e('footer_cr_number') ?></strong></div>
+                        <?php if (s('license_number') !== ''): ?><div><?= e('footer_license_label') ?> <strong><?= e('license_number') ?></strong></div><?php endif; ?>
+                        <?php if (s('footer_cr_number') !== ''): ?><div><?= e('footer_cr_label') ?> <strong><?= e('footer_cr_number') ?></strong></div><?php endif; ?>
+                        <?php if (s('agency_ice') !== ''): ?><div><?= h(t('ice_label')) ?> <strong dir="ltr"><?= e('agency_ice') ?></strong></div><?php endif; ?>
+                        <?php if (s('agency_if') !== ''): ?><div><?= h(t('if_label')) ?> <strong dir="ltr"><?= e('agency_if') ?></strong></div><?php endif; ?>
                     </div>
+                    <?php $socials = agency_socials(); if ($socials): ?>
+                    <div class="flex items-center gap-2 pt-2" aria-label="<?= h(t('follow_us')) ?>">
+                        <?php foreach ($socials as $social): ?>
+                        <a href="<?= h($social['url']) ?>" target="_blank" rel="noopener" aria-label="<?= h($social['label']) ?>" class="w-9 h-9 rounded-full border border-brand-gold/40 text-brand-gold hover:bg-brand-gold hover:text-brand-darkgreen flex items-center justify-center transition"><i class="fa-brands <?= h($social['icon']) ?>" aria-hidden="true"></i></a>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
                 <nav aria-label="<?= e('footer_links_title') ?>">
                     <h2 class="font-serif-title text-base font-bold text-brand-gold mb-4"><?= e('footer_links_title') ?></h2>
@@ -262,9 +312,21 @@ function public_footer(array $app, bool $isHome): void
                 <div>
                     <h2 class="font-serif-title text-base font-bold text-brand-gold mb-4"><?= e('footer_contact_title') ?></h2>
                     <ul class="space-y-3 text-xs text-brand-ivory/70">
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-location-dot text-brand-gold mt-1" aria-hidden="true"></i><span><?= e('footer_address') ?></span></li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-phone text-brand-gold" aria-hidden="true"></i><a dir="ltr" href="<?= h(tel_href(s('footer_phone'))) ?>"><?= e('footer_phone') ?></a></li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-envelope text-brand-gold" aria-hidden="true"></i><a href="mailto:<?= e('footer_email') ?>"><?= e('footer_email') ?></a></li>
+                        <?php if (s('footer_address') !== ''): ?>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-location-dot text-brand-gold mt-1" aria-hidden="true"></i><span><?= e('footer_address') ?><?php if (s('agency_map_url') !== ''): ?><br><a href="<?= h(safe_url(s('agency_map_url'))) ?>" target="_blank" rel="noopener" class="text-brand-gold hover:underline"><?= h(t('view_map')) ?></a><?php endif; ?></span></li>
+                        <?php endif; ?>
+                        <?php foreach (array_filter([s('phone_display'), s('agency_phone2')], 'strlen') as $phone): ?>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-phone text-brand-gold" aria-hidden="true"></i><a dir="ltr" href="<?= h(tel_href($phone)) ?>"><?= h($phone) ?></a></li>
+                        <?php endforeach; ?>
+                        <?php if (wa_number() !== ''): ?>
+                        <li class="flex items-center gap-2"><i class="fa-brands fa-whatsapp text-brand-gold" aria-hidden="true"></i><a dir="ltr" href="<?= h(wa_link(s('wa_float_message'))) ?>" target="_blank" rel="noopener">+<?= h(wa_number()) ?></a></li>
+                        <?php endif; ?>
+                        <?php $email = s('footer_email') !== '' ? s('footer_email') : s('top_email'); if ($email !== ''): ?>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-envelope text-brand-gold" aria-hidden="true"></i><a href="mailto:<?= h($email) ?>"><?= h($email) ?></a></li>
+                        <?php endif; ?>
+                        <?php if (s('agency_hours') !== ''): ?>
+                        <li class="flex items-start gap-2"><i class="fa-regular fa-clock text-brand-gold mt-1" aria-hidden="true"></i><span><?= nl('agency_hours') ?></span></li>
+                        <?php endif; ?>
                     </ul>
                 </div>
                 <?php if (gf_visible('show_newsletter')): ?>

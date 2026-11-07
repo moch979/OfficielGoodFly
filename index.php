@@ -30,17 +30,7 @@ public_header([
     'ogImage' => $ogImage,
     'preloadImage' => $site['hero'][0] ?? '',
     'isHome' => true,
-    'jsonLd' => array_filter([
-        '@context' => 'https://schema.org',
-        '@type' => 'TravelAgency',
-        'name' => s('about_card_title', 'Good Fly Travel'),
-        'url' => $canonical,
-        'image' => $ogImage,
-        'logo' => s('logo_image') !== '' ? absolute_url(s('logo_image')) : null,
-        'telephone' => s('footer_phone'),
-        'email' => s('footer_email'),
-        'address' => ['@type' => 'PostalAddress', 'streetAddress' => s('footer_address'), 'addressCountry' => 'MA'],
-    ]),
+    'jsonLd' => agency_schema($canonical) + ['image' => $ogImage],
 ]);
 ?>
     <main id="main" class="gf-flow">

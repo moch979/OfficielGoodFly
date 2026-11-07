@@ -9,6 +9,9 @@ $group = (string) ($_GET['group'] ?? 'general');
 if (!isset($groups[$group])) {
     $group = 'general';
 }
+if ($group === 'agency') {
+    redirect('agency.php');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
@@ -48,7 +51,7 @@ if ($group === 'notifications') {
     echo '<p class="intro">كل عبارة في الموقع قابلة للتعديل من هنا بالعربية والفرنسية والإنجليزية. العناصر المتكررة مثل البرامج والخدمات لها صفحات مستقلة، والمصمم المرئي يعرض التعديل على الموقع مباشرة.</p>';
     echo '<div class="tabs">';
     foreach ($groups as $key => $label) {
-        if ($key === 'notifications') {
+        if ($key === 'notifications' || $key === 'agency') {
             continue;
         }
         $class = $key === $group ? ' class="active"' : '';

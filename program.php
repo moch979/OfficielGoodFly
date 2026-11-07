@@ -20,7 +20,7 @@ foreach (languages() as $code => $info) {
 if (!$program) {
     http_response_code(404);
     public_header([
-        'title' => t('not_found_title') . ' | ' . s('about_card_title', 'Good Fly Travel'),
+        'title' => t('not_found_title') . ' | ' . agency_name(),
         'description' => s('meta_description'),
         'canonical' => site_url() . '/',
         'langLinks' => $langLinks,
@@ -47,7 +47,7 @@ $jsonLd = [
     'description' => $program['description'],
     'image' => absolute_url((string) $row['image']),
     'url' => program_absolute_url($slug),
-    'provider' => ['@type' => 'TravelAgency', 'name' => s('about_card_title', 'Good Fly Travel'), 'url' => site_url() . '/'],
+    'provider' => ['@type' => 'TravelAgency', 'name' => agency_name(), 'url' => site_url() . '/'],
 ];
 if ($rooms) {
     $jsonLd['offers'] = ['@type' => 'AggregateOffer', 'priceCurrency' => 'MAD', 'lowPrice' => min($rooms), 'highPrice' => max($rooms)];
@@ -59,7 +59,7 @@ if ($program['itinerary']) {
 }
 
 public_header([
-    'title' => $program['title'] . ' | ' . s('about_card_title', 'Good Fly Travel'),
+    'title' => $program['title'] . ' | ' . agency_name(),
     'description' => mb_strimwidth($program['description'], 0, 300, '…'),
     'canonical' => program_absolute_url($slug),
     'alternates' => (int) $row['is_active'] === 1 ? $alternates : [],
