@@ -318,7 +318,14 @@ function save_settings_groups(array $groups, array $source): void
             }
             $value = $raw;
         } elseif ($type === 'image') {
-            $value = save_upload('file_' . $key) ?: $raw;
+            $uploaded = save_upload('file_' . $key);
+            if ($uploaded !== null && $key === 'logo_image') {
+                $fitted = image_fit_logo(project_root() . '/' . $uploaded);
+                if ($fitted !== null) {
+                    $uploaded = 'uploads/' . basename($fitted);
+                }
+            }
+            $value = $uploaded ?: $raw;
         } elseif ($type === 'number') {
             $value = (string) (int) $raw;
         } elseif ($type === 'html') {

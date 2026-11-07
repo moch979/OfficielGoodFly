@@ -245,7 +245,7 @@ function render_field(string $id, array $field, callable $nameFor, array $values
 function render_departures(array $departures, string $hint): void
 {
     echo '<label>مواعيد الانطلاق</label><div class="deps"><table><thead><tr><th>تاريخ الانطلاق</th><th>تاريخ العودة</th><th>المقاعد المتبقية</th><th></th></tr></thead><tbody class="dep-rows">';
-    $rows = $departures ?: [];
+    $rows = array_values(array_filter($departures, 'is_array'));
     $rows[] = ['id' => 0, 'depart_date' => '', 'return_date' => '', 'seats_left' => ''];
     foreach ($rows as $row) {
         $past = $row['depart_date'] !== '' && $row['depart_date'] < date('Y-m-d');
@@ -300,6 +300,8 @@ function blank_record(array $fields): array
             $record[$name] = (string) array_key_first($field['options'] ?? []);
         } elseif ($name === 'stars') {
             $record[$name] = 5;
+        } elseif ($type === 'departures') {
+            $record[$name] = [];
         } else {
             $record[$name] = '';
         }
