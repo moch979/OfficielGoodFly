@@ -151,8 +151,8 @@ public_header([
                 <div class="w-16 h-1 bg-brand-gold mx-auto mb-6"></div>
                 <p class="text-brand-slate text-base leading-relaxed"><?= nl('pkg_subtitle') ?></p>
             </div>
-            <div class="flex justify-center mb-12 overflow-x-auto py-2">
-                <div class="inline-flex p-1.5 rounded-full bg-white shadow-md border border-brand-gold/30" role="tablist">
+            <div class="mb-12 overflow-x-auto py-2 -mx-4 px-4">
+                <div class="flex w-max mx-auto p-1.5 rounded-full bg-white shadow-md border border-brand-gold/30" role="tablist">
                     <button type="button" role="tab" :aria-selected="(activeTab === 'all').toString()" @click="selectTab('all')" :class="activeTab === 'all' ? 'gold-bg-gradient text-brand-darkgreen font-bold' : 'text-brand-green hover:text-brand-gold'" class="px-6 py-2.5 rounded-full text-xs sm:text-sm transition duration-300 whitespace-nowrap"><?= e('pkg_tab_all') ?></button>
                     <template x-for="cat in categories" :key="cat.slug">
                         <button type="button" role="tab" :aria-selected="(activeTab === cat.slug).toString()" @click="selectTab(cat.slug)" :class="activeTab === cat.slug ? 'gold-bg-gradient text-brand-darkgreen font-bold' : 'text-brand-green hover:text-brand-gold'" class="px-6 py-2.5 rounded-full text-xs sm:text-sm transition duration-300 whitespace-nowrap" x-text="cat.label"></button>
@@ -366,11 +366,11 @@ public_header([
 
 <?php
 public_footer([
-    'hero' => $site['hero'],
-    'categories' => $site['categories'],
-    'packages' => $site['packages'],
-    'filters' => $site['filters'],
-    'tiers' => $site['tiers'],
-    'cities' => $site['cities'],
-    'guides' => $site['guides'],
+                'hero' => $site['hero'],
+                'categories' => $site['categories'],
+                'packages' => $site['packages'],
+                'filters' => $site['filters'],
+                'tiers' => $site['tiers'],
+                'cities' => $site['cities'],
+                'guides' => $site['guides'],
 ], true);
