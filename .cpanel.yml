@@ -1,5 +1,9 @@
 ---
+# Copies only what the live site needs. Listing paths explicitly matters:
+# "cp -R *" skips dotfiles, so .htaccess never reached the server.
+# config.php is deliberately not copied: the server keeps its own database credentials.
 deployment:
   tasks:
     - export DEPLOYPATH=/home2/goodflym/public_html/
-    - /bin/cp -R * $DEPLOYPATH
+    - /bin/cp -R .htaccess index.php program.php seo.php admin api assets includes uploads $DEPLOYPATH
+    - /bin/rm -f ${DEPLOYPATH}DEPLOY.md ${DEPLOYPATH}build-css.ps1 ${DEPLOYPATH}tailwind.config.js ${DEPLOYPATH}install.php ${DEPLOYPATH}README.md ${DEPLOYPATH}.cpanel.yml ${DEPLOYPATH}assets/css/input.css
