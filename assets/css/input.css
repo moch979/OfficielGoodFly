@@ -52,7 +52,9 @@
         background: linear-gradient(135deg, rgb(var(--gf-lightgold)) 0%, rgb(var(--gf-gold)) 100%);
         background: linear-gradient(135deg, rgb(var(--gf-gold)) 0%, color-mix(in srgb, rgb(var(--gf-gold)) 82%, #8a4b00) 100%);
     }
-    .gf-logo-badge { background: #fff; border-radius: 1rem; box-shadow: 0 6px 18px -10px rgba(0, 0, 0, .45); }
+    /* The logo's navy lettering sits on a navy header, so a light halo keeps it legible without a white box. */
+    .gf-logo-badge { background: transparent; }
+    .gf-logo-badge img { filter: drop-shadow(0 0 1px rgba(255, 255, 255, .95)) drop-shadow(0 0 6px rgba(255, 255, 255, .45)); }
     .gf-flow { display: flex; flex-direction: column; width: 100%; }
     .gf-flow > * { width: 100%; }
     .gf-section { padding-top: var(--gf-section-y); padding-bottom: var(--gf-section-y); }
