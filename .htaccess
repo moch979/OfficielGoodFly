@@ -10,6 +10,10 @@ ServerSignature Off
     RewriteRule ^(fr|en)/?$ index.php?lang=$1 [L,QSA]
     RewriteRule ^(fr|en)/program/([a-z0-9\-]+)/?$ program.php?lang=$1&slug=$2 [L,QSA]
     RewriteRule ^program/([a-z0-9\-]+)/?$ program.php?slug=$1 [L,QSA]
+    RewriteRule ^(fr|en)/blog/?$ blog.php?lang=$1 [L,QSA]
+    RewriteRule ^(fr|en)/blog/([a-z0-9\-]+)/?$ blog.php?lang=$1&slug=$2 [L,QSA]
+    RewriteRule ^blog/?$ blog.php [L,QSA]
+    RewriteRule ^blog/([a-z0-9\-]+)/?$ blog.php?slug=$1 [L,QSA]
     RewriteRule ^robots\.txt$ seo.php?file=robots [L]
     RewriteRule ^sitemap\.xml$ seo.php?file=sitemap [L]
 </IfModule>

@@ -108,3 +108,67 @@ function migrate_program_pages(PDO $pdo): void
             ]);
     }
 }
+
+function migrate_monthly_departures(PDO $pdo): void
+{
+    mig_setting($pdo, 'pkg_next_departure', 'أقرب رحلة', 'program', 'عبارة قبل أقرب موعد في البطاقة', 'text', '', 200, true, 'Prochain départ', 'Next departure');
+    mig_setting($pdo, 'pkg_all_dates', 'كل المواعيد ({n})', 'program', 'رابط كل المواعيد في البطاقة', 'text', 'استخدم {n} لعدد المواعيد', 210, true, 'Toutes les dates ({n})', 'All dates ({n})');
+}
+
+/** Hotel options per program (Madinah + Makkah hotels with a price per room type), and seats that may be left untracked. */
+function migrate_package_hotels(PDO $pdo): void
+{
+    $translated = '';
+    foreach (['madinah_hotel' => 160, 'makkah_hotel' => 160, 'makkah_note' => 255, 'meals' => 160] as $column => $length) {
+        foreach (array_merge([''], array_map(static function ($lang) {
+            return '_' . $lang;
+        }, extra_languages())) as $suffix) {
+            $translated .= "`{$column}{$suffix}` VARCHAR({$length}) NOT NULL DEFAULT '',\n";
+        }
+    }
+    $pdo->exec("CREATE TABLE IF NOT EXISTS package_hotels (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        package_id INT NOT NULL,
+        {$translated}
+        price_double INT NOT NULL DEFAULT 0,
+        price_triple INT NOT NULL DEFAULT 0,
+        price_quad INT NOT NULL DEFAULT 0,
+        price_quint INT NOT NULL DEFAULT 0,
+        sort_order INT NOT NULL DEFAULT 0,
+        INDEX idx_hotel_package (package_id, sort_order),
+        CONSTRAINT fk_hotel_package FOREIGN KEY (package_id) REFERENCES packages(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $pdo->exec('ALTER TABLE package_departures MODIFY seats_left INT NULL DEFAULT NULL');
+    mig_add_column($pdo, 'bookings', 'hotel_id', 'INT NULL');
+    mig_add_column($pdo, 'bookings', 'hotel_label', "VARCHAR(255) NOT NULL DEFAULT ''");
+    mig_add_column($pdo, 'bookings', 'room_price', 'INT NOT NULL DEFAULT 0');
+
+    $hasHotels = (int) $pdo->query('SELECT COUNT(*) FROM package_hotels')->fetchColumn() > 0;
+    if (!$hasHotels) {
+        $insert = $pdo->prepare('INSERT INTO package_hotels (package_id, makkah_hotel, makkah_hotel_fr, makkah_hotel_en, makkah_note, makkah_note_fr, makkah_note_en, price_double, price_triple, price_quad, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 10)');
+        foreach ($pdo->query('SELECT * FROM packages WHERE price_double > 0 OR price_triple > 0 OR price_quad > 0')->fetchAll() as $row) {
+            $insert->execute([
+                $row['id'], str_limit((string) $row['hotel'], 160), str_limit((string) $row['hotel_fr'], 160), str_limit((string) $row['hotel_en'], 160),
+                str_limit((string) $row['distance'], 255), str_limit((string) $row['distance_fr'], 255), str_limit((string) $row['distance_en'], 255),
+                (int) $row['price_double'], (int) $row['price_triple'], (int) $row['price_quad'],
+            ]);
+        }
+    }
+
+    $texts = [
+        ['room_quint', 'غرفة خماسية', 'Chambre quintuple', 'Quintuple room', 'اسم الغرفة الخماسية'],
+        ['prog_hotels_title', 'الفنادق والأسعار', 'Hôtels et tarifs', 'Hotels & prices', 'عنوان جدول الفنادق'],
+        ['prog_hotels_note', 'الأسعار للشخص الواحد بالدرهم حسب نوع الغرفة.', 'Prix par personne selon le type de chambre.', 'Prices per person by room type.', 'سطر تحت جدول الفنادق'],
+        ['prog_madinah', 'المدينة المنورة', 'Médine', 'Madinah', 'عمود فندق المدينة'],
+        ['prog_makkah', 'مكة المكرمة', 'La Mecque', 'Makkah', 'عمود فندق مكة'],
+        ['prog_seats_open', 'متاح', 'Disponible', 'Available', 'موعد بلا عدد مقاعد محدد'],
+        ['modal_hotel_label', 'الفندق', 'Hôtel', 'Hotel', 'حقل الفندق في نموذج الحجز'],
+        ['modal_hotel_any', 'لم أحدد بعد', 'Pas encore choisi', 'Not decided yet', 'خيار عدم تحديد الفندق'],
+    ];
+    $order = 300;
+    foreach ($texts as [$key, $ar, $fr, $en, $label]) {
+        mig_setting($pdo, $key, $ar, 'program', $label, 'text', '', $order, true, $fr, $en);
+        $order += 10;
+    }
+}

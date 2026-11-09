@@ -1,6 +1,6 @@
 /** Build: tools\tailwindcss.exe -c tailwind.config.js -i assets/css/input.css -o assets/css/site.css --minify */
 module.exports = {
-    content: ['./index.php', './program.php', './includes/design.php', './includes/public_layout.php', './assets/js/site.js'],
+    content: ['./index.php', './program.php', './blog.php', './includes/blog.php', './includes/design.php', './includes/public_layout.php', './assets/js/site.js'],
     theme: {
         extend: {
             colors: {

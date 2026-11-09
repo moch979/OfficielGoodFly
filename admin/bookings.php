@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $labels = ['all' => 'الكل'] + booking_status_labels();
-$roomNames = ['double' => 'ثنائية', 'triple' => 'ثلاثية', 'quad' => 'رباعية'];
+$roomNames = admin_room_names();
 $status = (string) ($_GET['status'] ?? 'all');
 if (!isset($labels[$status])) {
     $status = 'all';
@@ -46,9 +46,9 @@ if (isset($_GET['export'])) {
     header('Content-Disposition: attachment; filename="goodfly-bookings-' . date('Y-m-d') . '.csv"');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF");
-    fputcsv($out, ['#', 'الاسم', 'الهاتف', 'نوع الرحلة', 'البرنامج', 'الأفراد', 'تاريخ السفر', 'موعد الانطلاق', 'نوع الغرفة', 'الملاحظات', 'اللغة', 'الحالة', 'وقت الإرسال']);
+    fputcsv($out, ['#', 'الاسم', 'الهاتف', 'نوع الرحلة', 'البرنامج', 'الأفراد', 'تاريخ السفر', 'موعد الانطلاق', 'الفندق', 'نوع الغرفة', 'سعر الشخص', 'الملاحظات', 'اللغة', 'الحالة', 'وقت الإرسال']);
     foreach ($list as $row) {
-        $cells = [$row['id'], $row['full_name'], $row['phone'], $row['trip_type'], $row['package_title'], $row['travelers'], $row['travel_date'], $row['departure_date'], $roomNames[$row['room_type']] ?? '', $row['notes'], $row['lang'], $labels[$row['status']] ?? $row['status'], $row['created_at']];
+        $cells = [$row['id'], $row['full_name'], $row['phone'], $row['trip_type'], $row['package_title'], $row['travelers'], $row['travel_date'], $row['departure_date'], $row['hotel_label'], $roomNames[$row['room_type']] ?? '', (int) $row['room_price'] ?: '', $row['notes'], $row['lang'], $labels[$row['status']] ?? $row['status'], $row['created_at']];
         fputcsv($out, array_map(static function ($cell) {
             $cell = (string) $cell;
             return preg_match('/^[=+\-@\t\r]/', $cell) ? "'" . $cell : $cell;
@@ -88,7 +88,7 @@ foreach ($list as $row) {
     echo '<tr><td>' . (int) $row['id'] . '</td><td>' . h($row['full_name']) . '</td>';
     $trip = $row['package_title'] !== '' ? $row['package_title'] : $row['trip_type'];
     $room = $roomNames[$row['room_type']] ?? '';
-    echo '<td dir="ltr"><a href="' . h($wa) . '" target="_blank" rel="noopener" title="واتساب">' . h($row['phone']) . '</a></td><td>' . h(mb_strimwidth($trip, 0, 50, '…')) . ($room !== '' ? '<div class="hint">غرفة ' . h($room) . '</div>' : '') . '</td>';
+    echo '<td dir="ltr"><a href="' . h($wa) . '" target="_blank" rel="noopener" title="واتساب">' . h($row['phone']) . '</a></td><td>' . h(mb_strimwidth($trip, 0, 50, '…')) . ($row['hotel_label'] !== '' ? '<div class="hint">' . h(mb_strimwidth($row['hotel_label'], 0, 70, '…')) . '</div>' : '') . ($room !== '' ? '<div class="hint">غرفة ' . h($room) . '</div>' : '') . '</td>';
     echo '<td>' . h($row['travelers']) . '</td><td dir="ltr">' . h($row['departure_date'] !== '' ? $row['departure_date'] : $row['travel_date']) . '</td><td>' . h(strtoupper($row['lang'])) . '</td><td>' . h($labels[$row['status']] ?? $row['status']) . '</td><td>' . h($row['created_at']) . '</td>';
     echo '<td class="actions"><a class="btn small" href="booking.php?id=' . (int) $row['id'] . '">تفاصيل</a>' . delete_button((int) $row['id'], 'حذف الطلب نهائياً؟') . '</td></tr>';
 }

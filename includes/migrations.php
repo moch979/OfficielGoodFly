@@ -19,11 +19,17 @@ function migrations(): array
         '2026_11_05_09_logo_brand' => 'migrate_logo_brand',
         '2026_11_05_10_program_pages' => 'migrate_program_pages',
         '2026_11_07_11_agency_info' => 'migrate_agency_info',
+        '2026_11_08_12_google_reviews' => 'migrate_google_reviews',
+        '2026_11_08_13_google_reviews_cards' => 'migrate_google_reviews_cards',
+        '2026_11_09_14_monthly_departures' => 'migrate_monthly_departures',
+        '2026_11_09_15_package_hotels' => 'migrate_package_hotels',
+        '2026_11_09_16_blog' => 'migrate_blog',
     ];
 }
 
 require_once __DIR__ . '/migrations_programs.php';
 require_once __DIR__ . '/migrations_agency.php';
+require_once __DIR__ . '/migrations_blog.php';
 
 function run_migrations(): void
 {

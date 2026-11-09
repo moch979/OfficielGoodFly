@@ -32,7 +32,7 @@ function collect_record(array $fields, array $source): array
     foreach ($fields as $name => $field) {
         $type = $field['type'] ?? 'text';
         $label = $field['label'] ?? $name;
-        if (in_array($type, ['gallery', 'departures'], true) || (in_array($type, ['lines', 'blocks'], true) && empty($field['column']))) {
+        if (in_array($type, ['gallery', 'departures', 'hotels'], true) || (in_array($type, ['lines', 'blocks'], true) && empty($field['column']))) {
             continue;
         }
         if ($type === 'checkbox') {
@@ -135,6 +135,14 @@ function save_collection_item(string $type, array $source, int $id): int
         $statement->execute([$id]);
         $oldSlug = $statement->fetchColumn();
     }
+    if ($type === 'blog') {
+        $date = DateTime::createFromFormat('!Y-m-d', $record['published_at']);
+        if (!$date || $date->format('Y-m-d') !== $record['published_at']) {
+            throw new RuntimeException('تاريخ النشر غير صحيح.');
+        }
+        $slug = $record['slug'] !== '' ? $record['slug'] : slugify($record['title_en'] ?: $record['title_fr']);
+        $record['slug'] = unique_blog_slug($slug !== '' ? $slug : 'post', $id);
+    }
     $id = write_record($definition['table'], $record, $id);
     if ($oldSlug !== null && $oldSlug !== false && $oldSlug !== $record['slug']) {
         db()->prepare('UPDATE packages SET category = ? WHERE category = ?')->execute([$record['slug'], $oldSlug]);
@@ -158,7 +166,7 @@ function delete_collection_item(string $type, int $id): void
 
 function movable_tables(): array
 {
-    return ['nav_links', 'hero_slides', 'stats', 'about_points', 'package_categories', 'filter_options', 'services', 'calc_tiers', 'guides', 'testimonials', 'footer_links', 'packages', 'cities'];
+    return ['nav_links', 'hero_slides', 'stats', 'about_points', 'package_categories', 'filter_options', 'services', 'calc_tiers', 'guides', 'testimonials', 'footer_links', 'packages', 'cities', 'blog_posts'];
 }
 
 function move_record(string $table, int $id, string $direction): void
@@ -199,14 +207,57 @@ function package_record(int $id): ?array
     }
     $package['gallery'] = implode("\n", gallery_list($package));
     $package['departures'] = departures_for_admin($id);
+    $package['hotels'] = hotels_for_admin($id);
+    return $package;
+}
+
+/** The submitted form as a record, so a rejected save shows the admin what they typed. */
+function package_record_from_post(array $source, ?array $saved): array
+{
+    $package = $saved ?? blank_record(package_fields());
+    foreach (package_fields() as $name => $field) {
+        $type = $field['type'] ?? 'text';
+        if (in_array($type, ['departures', 'hotels'], true)) {
+            continue;
+        }
+        if ($type === 'checkbox') {
+            $package[$name] = isset($source[$name]) ? 1 : 0;
+            continue;
+        }
+        foreach (array_merge([$name], array_map(static function ($lang) use ($name) {
+            return $name . '_' . $lang;
+        }, extra_languages())) as $key) {
+            if (array_key_exists($key, $source) && is_scalar($source[$key])) {
+                $package[$key] = (string) $source[$key];
+            }
+        }
+    }
+    $ids = posted_list($source, 'dep_id');
+    $package['departures'] = [];
+    foreach (posted_list($source, 'dep_date') as $index => $date) {
+        $package['departures'][] = ['id' => (int) ($ids[$index] ?? 0), 'depart_date' => $date, 'return_date' => posted_list($source, 'dep_return')[$index] ?? '', 'seats_left' => posted_list($source, 'dep_seats')[$index] ?? ''];
+    }
+    if (isset($source['hotels_form'])) {
+        $package['hotels'] = [];
+        foreach (posted_list($source, 'hotel_id') as $index => $hotelId) {
+            $hotel = ['id' => (int) $hotelId];
+            foreach (hotel_columns() as $column) {
+                $hotel[$column] = posted_list($source, 'hotel_' . $column)[$index] ?? '';
+            }
+            $package['hotels'][] = $hotel;
+        }
+    }
     return $package;
 }
 
 function save_package(array $source, int $id): int
 {
     $record = collect_record(package_fields(), $source);
-    if (!room_prices($record) && trim((string) $record['price']) === '') {
-        throw new RuntimeException('أدخل سعر غرفة واحدة على الأقل، أو نص السعر في البطاقة.');
+    $departures = parse_departures($source);
+    $hotels = isset($source['hotels_form']) ? parse_hotels($source) : null;
+    $hotelCount = $hotels !== null ? count($hotels) : count(hotels_for_admin($id));
+    if ($hotelCount === 0 && trim((string) $record['price']) === '') {
+        throw new RuntimeException('أضف فندقاً واحداً على الأقل بسعره، أو اكتب نص السعر في البطاقة.');
     }
     $slug = $record['slug'] !== '' ? $record['slug'] : slugify($record['title_en'] ?: $record['title_fr']);
     $record['slug'] = unique_package_slug($slug !== '' ? $slug : 'program', $id);
@@ -230,7 +281,10 @@ function save_package(array $source, int $id): int
             $insert->execute([$id, str_limit($line, 255), str_limit($translated['fr'][$index] ?? '', 255), str_limit($translated['en'][$index] ?? '', 255), $position * 10]);
             $position++;
         }
-        save_departures($id, $source);
+        save_departures($id, $departures);
+        if ($hotels !== null) {
+            save_hotels($id, $hotels);
+        }
         db()->commit();
     } catch (Throwable $e) {
         db()->rollBack();
@@ -389,6 +443,9 @@ function save_settings_groups(array $groups, array $source): void
     } catch (Throwable $e) {
         db()->rollBack();
         throw $e;
+    }
+    if (in_array('testimonials', $groups, true)) {
+        google_reviews_clear_cache();
     }
 }
 

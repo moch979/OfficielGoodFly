@@ -13,7 +13,7 @@ $csrf = csrf_token();
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
     <title>المصمم المرئي | Good Fly</title>
-    <link rel="icon" href="../assets/img/favicon.svg">
+    <link rel="icon" href="../favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -72,6 +72,9 @@ $csrf = csrf_token();
         .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
         .deprow { display: grid; grid-template-columns: 1fr 1fr 80px auto; gap: 4px; margin-bottom: 4px; }
         .deprow input { padding: 6px; border: 1px solid #d9e1ec; border-radius: 8px; width: 100%; }
+        .hotelbox { border: 1px solid #dbe4f0; border-radius: 10px; padding: 8px; margin-bottom: 6px; background: #fbfdff; display: grid; gap: 4px; }
+        .hotelbox input { padding: 6px; border: 1px solid #d9e1ec; border-radius: 8px; width: 100%; font-family: inherit; }
+        .hotelprices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
         .thumbs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
         .thumbs img { width: 56px; height: 40px; object-fit: cover; border-radius: 6px; }
         .formsec { margin: 18px 0 0; padding-top: 10px; border-top: 1px solid #dbe4f0; font-size: 14px; }
@@ -364,7 +367,7 @@ $csrf = csrf_token();
                 date.value = row.depart_date || '';
                 const back = el('input', { type: 'date', name: 'dep_return[]', title: 'تاريخ العودة' });
                 back.value = row.return_date || '';
-                const seats = el('input', { type: 'number', name: 'dep_seats[]', min: '0', placeholder: 'المقاعد', title: 'المقاعد المتبقية' });
+                const seats = el('input', { type: 'number', name: 'dep_seats[]', min: '0', placeholder: 'غير محدد', title: 'المقاعد (اختياري)' });
                 seats.value = row.seats_left ?? '';
                 const remove = smallButton('×', () => line.remove(), true);
                 line.append(id, date, back, seats, remove);
@@ -372,7 +375,40 @@ $csrf = csrf_token();
             };
             (rows || []).forEach(addRow);
             const add = smallButton('إضافة موعد', () => addRow({}));
-            wrap.append(el('div', { class: 'hint' }, 'الانطلاق — العودة — المقاعد المتبقية'), list, add);
+            wrap.append(el('div', { class: 'hint' }, 'الانطلاق* — العودة* — المقاعد (اختياري)'), list, add);
+            if (field.hint) wrap.append(el('div', { class: 'hint' }, field.hint));
+            return wrap;
+        }
+
+        const hotelTexts = [['madinah_hotel', 'فندق المدينة المنورة'], ['makkah_hotel', 'فندق مكة المكرمة'], ['makkah_note', 'المسافة أو النقل في مكة'], ['meals', 'الوجبات']];
+        const roomNames = [['double', 'ثنائية'], ['triple', 'ثلاثية'], ['quad', 'رباعية'], ['quint', 'خماسية']];
+        function hotelsControl(field, rows) {
+            const wrap = el('div');
+            wrap.append(el('label', {}, field.label + ' *'), el('input', { type: 'hidden', name: 'hotels_form', value: '1' }));
+            const list = el('div');
+            const addRow = (row) => {
+                const box = el('div', { class: 'hotelbox' });
+                box.append(el('input', { type: 'hidden', name: 'hotel_id[]', value: String(row.id || 0) }));
+                hotelTexts.forEach(([column, label]) => ['ar', 'fr', 'en'].forEach((lang) => {
+                    const key = lang === 'ar' ? column : column + '_' + lang;
+                    const pane = el('div', { class: 'lang-pane', 'data-lang': lang });
+                    const input = el('input', { type: 'text', name: 'hotel_' + key + '[]', placeholder: label + (lang === 'ar' ? '' : ' — ' + langNames[lang]), dir: lang === 'ar' ? 'rtl' : 'ltr' });
+                    input.value = row[key] || '';
+                    pane.append(input);
+                    box.append(pane);
+                }));
+                const prices = el('div', { class: 'hotelprices' });
+                roomNames.forEach(([type, label]) => {
+                    const input = el('input', { type: 'number', min: '0', name: 'hotel_price_' + type + '[]', placeholder: label, title: label + ' (درهم)' });
+                    const price = Number(row['price_' + type] || 0);
+                    input.value = price > 0 ? String(price) : '';
+                    prices.append(input);
+                });
+                box.append(prices, smallButton('إزالة الفندق', () => box.remove(), true));
+                list.append(box);
+            };
+            (rows && rows.length ? rows : [{}]).forEach(addRow);
+            wrap.append(list, smallButton('إضافة فندق', () => addRow({})));
             if (field.hint) wrap.append(el('div', { class: 'hint' }, field.hint));
             return wrap;
         }
@@ -383,6 +419,10 @@ $csrf = csrf_token();
             if (field.section) wrap.append(el('h4', { class: 'formsec' }, field.section));
             if (type === 'departures') {
                 wrap.append(departuresControl(field, values.ar));
+                return wrap;
+            }
+            if (type === 'hotels') {
+                wrap.append(hotelsControl(field, values.ar));
                 return wrap;
             }
             if (type === 'gallery') {
@@ -407,7 +447,7 @@ $csrf = csrf_token();
             const langs = field.translatable ? ['ar', 'fr', 'en'] : ['ar'];
             langs.forEach((lang) => {
                 const pane = el('div', field.translatable ? { class: 'lang-pane', 'data-lang': lang } : {});
-                const label = el('label', {}, field.label);
+                const label = el('label', {}, field.label + (field.required && lang === 'ar' ? ' *' : ''));
                 if (field.translatable) {
                     label.append(el('span', { class: 'lang-tag' }, langNames[lang]));
                     if (lang !== 'ar' && !String(values[lang] || '').trim() && String(values.ar || '').trim()) label.append(el('span', { class: 'missing' }, 'غير مترجم'));
@@ -511,7 +551,7 @@ $csrf = csrf_token();
             const values = {};
             Object.entries(block.fields).forEach(([name, field]) => {
                 if (field.type === 'checkbox') values[name] = 1;
-                else if (field.type === 'departures') values[name] = [];
+                else if (field.type === 'departures' || field.type === 'hotels') values[name] = [];
                 else if (name === 'stars') values[name] = 5;
                 else if (field.type === 'select') values[name] = Object.keys(field.options || {})[0] || '';
                 else values[name] = '';

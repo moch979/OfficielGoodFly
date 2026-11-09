@@ -13,7 +13,7 @@ function snapshot_tables(): array
     return [
         'settings', 'nav_links', 'hero_slides', 'stats', 'about_points', 'package_categories',
         'packages', 'package_features', 'services', 'calc_tiers', 'cities', 'city_features',
-        'guides', 'testimonials', 'footer_links', 'filter_options',
+        'guides', 'testimonials', 'footer_links', 'filter_options', 'blog_posts',
     ];
 }
 

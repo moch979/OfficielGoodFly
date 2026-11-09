@@ -30,7 +30,10 @@ public_header([
     'ogImage' => $ogImage,
     'preloadImage' => $site['hero'][0] ?? '',
     'isHome' => true,
-    'jsonLd' => agency_schema($canonical) + ['image' => $ogImage],
+    'jsonLd' => [
+        agency_schema($canonical) + ['image' => $ogImage],
+        ['@context' => 'https://schema.org', '@type' => 'WebSite', 'name' => agency_name(), 'url' => $canonical, 'inLanguage' => $lang],
+    ],
 ]);
 ?>
     <main id="main" class="gf-flow">
@@ -166,7 +169,7 @@ public_header([
                         <a :href="pkg.url" class="relative h-64 overflow-hidden block" :aria-label="pkg.title">
                             <img :src="pkg.image" alt="" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-110 transition duration-700">
                             <div class="absolute inset-0 bg-gradient-to-t from-brand-darkgreen/80 via-transparent to-transparent"></div>
-                            <div class="absolute top-4 start-4 bg-brand-darkgreen/90 text-brand-gold text-xs font-semibold px-3 py-1.5 rounded-full border border-brand-gold/30 backdrop-blur-sm">
+                            <div x-show="pkg.hotel" class="absolute top-4 start-4 bg-brand-darkgreen/90 text-brand-gold text-xs font-semibold px-3 py-1.5 rounded-full border border-brand-gold/30 backdrop-blur-sm">
                                 <i class="fa-solid fa-hotel me-1" aria-hidden="true"></i> <span x-text="pkg.hotel"></span>
                             </div>
                             <div class="absolute top-4 end-4 bg-brand-gold text-brand-darkgreen text-xs font-bold px-3 py-1 rounded-full"><span x-text="pkg.categoryBadge"></span></div>
@@ -175,7 +178,11 @@ public_header([
                         <div class="p-6 flex-1 flex flex-col justify-between">
                             <div>
                                 <h3 class="font-serif-title text-2xl font-bold text-brand-green mb-2 group-hover:text-brand-gold transition"><a :href="pkg.url" x-text="pkg.title"></a></h3>
-                                <p x-show="pkg.departures.length" class="text-[11px] text-brand-slate mb-2"><i class="fa-regular fa-calendar me-1 text-brand-gold" aria-hidden="true"></i><span x-text="pkg.departures.length ? pkg.departures[0].label : ''"></span></p>
+                                <p x-show="pkg.departures.length" class="text-[11px] text-brand-slate mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span x-show="pkg.nextDeparture"><i class="fa-regular fa-calendar me-1 text-brand-gold" aria-hidden="true"></i><?= e('pkg_next_departure') ?>: <strong class="text-brand-green" x-text="pkg.nextDeparture"></strong></span>
+                                    <span x-show="!pkg.nextDeparture" class="text-red-700 font-bold"><?= e('prog_full') ?></span>
+                                    <a x-show="pkg.allDatesText" :href="pkg.url + '#departures'" class="font-bold text-brand-gold hover:underline" x-text="pkg.allDatesText"></a>
+                                </p>
                                 <p class="text-xs text-gray-600 mb-4 line-clamp-2" x-text="pkg.description"></p>
                                 <ul class="space-y-2 mb-6 text-xs text-brand-slate">
                                     <template x-for="(feat, fi) in pkg.features" :key="fi"><li class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-brand-gold text-sm" aria-hidden="true"></i><span x-text="feat"></span></li></template>
@@ -330,7 +337,7 @@ public_header([
     </section>
 <?php endif; ?>
 
-<?php if (gf_visible('show_testimonials')): ?>
+<?php if (gf_visible('show_testimonials')): $google = google_reviews(); $googleReviews = $google['reviews'] ?? []; ?>
     <section data-gf="testimonials" class="gf-section bg-brand-ivory<?= gf_off_class('show_testimonials') ?>"<?= gf_order_attr('testimonials') ?>>
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-3xl mx-auto mb-16">
@@ -338,7 +345,67 @@ public_header([
                 <h2 class="font-serif-title text-3xl sm:text-5xl font-bold text-brand-green mb-4"><?= e('tst_title') ?></h2>
                 <div class="w-16 h-1 bg-brand-gold mx-auto mb-6"></div>
             </div>
+            <?php if ($google && $google['count'] > 0): $rating = (float) $google['rating']; ?>
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-5 bg-white rounded-2xl shadow-lux border border-brand-gold/20 px-6 py-5 max-w-3xl mx-auto -mt-6 mb-12">
+                <div class="flex items-center gap-4">
+                    <i class="fa-brands fa-google text-3xl text-brand-green" aria-hidden="true"></i>
+                    <div>
+                        <div class="text-xs font-bold text-gray-500"><?= h(t('google_rating')) ?></div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-3xl font-black text-brand-green" dir="ltr"><?= h(number_format($rating, 1, current_lang() === 'fr' ? ',' : '.', '')) ?></span>
+                            <span class="flex text-brand-gold text-sm" dir="ltr" role="img" aria-label="<?= h($rating) ?>/5">
+                                <?php for ($star = 1; $star <= 5; $star++): ?>
+                                <i class="<?= $rating >= $star - 0.25 ? 'fa-solid fa-star' : ($rating >= $star - 0.75 ? 'fa-solid fa-star-half-stroke' : 'fa-regular fa-star') ?>" aria-hidden="true"></i>
+                                <?php endfor; ?>
+                            </span>
+                        </div>
+                        <div class="text-[11px] text-gray-500"><?= h(sprintf(t('google_based_on'), $google['count'])) ?></div>
+                    </div>
+                </div>
+                <div class="flex flex-wrap justify-center gap-2">
+                    <a href="<?= h(safe_url($google['writeUrl'])) ?>" target="_blank" rel="noopener" class="gold-bg-gradient text-brand-darkgreen font-bold text-xs px-5 py-2.5 rounded-full hover:brightness-110 transition"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i><?= h(t('google_write')) ?></a>
+                    <?php if ($google['url'] !== ''): ?>
+                    <a href="<?= h(safe_url($google['url'])) ?>" target="_blank" rel="noopener" class="border border-brand-green/20 text-brand-green font-bold text-xs px-5 py-2.5 rounded-full hover:border-brand-gold hover:text-brand-gold transition"><?= h(t('google_all')) ?></a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <?php if ($googleReviews): ?>
+                <?php foreach ($googleReviews as $review): $long = mb_strlen($review['text']) > 280; ?>
+                <figure class="bg-white p-8 rounded-2xl shadow-lux border border-brand-gold/20 flex flex-col justify-between"<?= $long ? ' x-data="{ more: false }"' : '' ?>>
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex text-brand-gold text-xs" role="img" aria-label="<?= (int) $review['rating'] ?>/5">
+                                <?php for ($star = 0; $star < $review['rating']; $star++): ?>
+                                <i class="fa-solid fa-star" aria-hidden="true"></i>
+                                <?php endfor; ?>
+                            </div>
+                            <i class="fa-brands fa-google text-gray-400 text-sm" title="<?= h(t('google_posted_on')) ?>" aria-label="<?= h(t('google_posted_on')) ?>"></i>
+                        </div>
+                        <blockquote class="text-xs text-brand-slate leading-relaxed whitespace-pre-line<?= $long ? ' line-clamp-6' : '' ?>" dir="auto"<?= $review['textLang'] !== '' ? ' lang="' . h($review['textLang']) . '"' : '' ?><?= $long ? ' :class="{ \'line-clamp-none\': more }"' : '' ?>><?= h($review['text']) ?></blockquote>
+                        <?php if ($long): ?>
+                        <button type="button" @click="more = !more" class="text-[11px] font-bold text-brand-gold hover:underline mt-2" x-text="more ? <?= h(json_encode(t('read_less'), JSON_UNESCAPED_UNICODE)) ?> : <?= h(json_encode(t('read_more'), JSON_UNESCAPED_UNICODE)) ?>"><?= h(t('read_more')) ?></button>
+                        <?php endif; ?>
+                    </div>
+                    <figcaption class="flex items-center gap-3 pt-4 mt-6 border-t border-gray-100">
+                        <?php if ($review['photo'] !== ''): ?>
+                        <img src="<?= h($review['photo']) ?>" alt="" width="40" height="40" loading="lazy" referrerpolicy="no-referrer" class="w-10 h-10 rounded-full object-cover">
+                        <?php else: ?>
+                        <div class="w-10 h-10 rounded-full gold-bg-gradient text-brand-darkgreen font-bold flex items-center justify-center" aria-hidden="true"><?= h(initials_of($review['author'])) ?></div>
+                        <?php endif; ?>
+                        <div>
+                            <?php if ($review['authorUrl'] !== ''): ?>
+                            <a href="<?= h(safe_url($review['authorUrl'])) ?>" target="_blank" rel="noopener nofollow" class="font-bold text-sm text-brand-green hover:text-brand-gold"><?= h($review['author']) ?></a>
+                            <?php else: ?>
+                            <div class="font-bold text-sm text-brand-green"><?= h($review['author']) ?></div>
+                            <?php endif; ?>
+                            <span class="block text-[10px] text-gray-500"><?= h($review['time']) ?></span>
+                        </div>
+                    </figcaption>
+                </figure>
+                <?php endforeach; ?>
+                <?php else: ?>
                 <?php foreach ($site['testimonials'] as $item): $stars = max(1, min(5, (int) $item['stars'])); ?>
                 <figure class="bg-white p-8 rounded-2xl shadow-lux border border-brand-gold/20 flex flex-col justify-between">
                     <div>
@@ -358,6 +425,7 @@ public_header([
                     </figcaption>
                 </figure>
                 <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </div>
     </section>

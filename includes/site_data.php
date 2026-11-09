@@ -47,15 +47,23 @@ function load_site(): array
         }
     }
     $departures = upcoming_departures(array_column($packageRows, 'id'));
+    $hotelsByPackage = package_hotels(array_column($packageRows, 'id'));
     $packages = [];
     foreach ($packageRows as $row) {
-        $packages[] = array_merge(package_booking_data($row, $departures[(int) $row['id']] ?? []), [
+        $upcoming = $departures[(int) $row['id']] ?? [];
+        $hotels = $hotelsByPackage[(int) $row['id']] ?? [];
+        $open = array_values(array_filter($upcoming, static function ($d) {
+            return !departure_full($d);
+        }));
+        $packages[] = array_merge(package_booking_data($row, $upcoming, $hotels), [
+            'nextDeparture' => $open ? $open[0]['day'] : '',
+            'allDatesText' => count($upcoming) > 1 ? str_replace('{n}', (string) count($upcoming), s('pkg_all_dates', 'كل المواعيد ({n})')) : '',
             'category' => $row['category'],
             'categoryBadge' => loc($row, 'category_badge'),
-            'hotel' => loc($row, 'hotel'),
+            'hotel' => display_hotel($row, $hotels),
             'distance' => loc($row, 'distance'),
             'description' => loc($row, 'description'),
-            'price' => display_price($row),
+            'price' => display_price($row, $hotels),
             'image' => asset_url((string) $row['image']),
             'features' => $featuresByPackage[$row['id']] ?? [],
             'hotelClass' => $row['hotel_class'],

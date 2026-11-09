@@ -28,6 +28,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             send_mail($to, 'رسالة تجريبية من Good Fly', "هذه رسالة تجريبية من لوحة التحكم.\nإذا وصلتك فتنبيهات الطلبات تعمل.");
             flash_set('ok', 'أُرسلت رسالة تجريبية إلى ' . $to . '. تفقد صندوق الوارد والبريد المزعج.');
+        } elseif (($_POST['action'] ?? '') === 'google_test') {
+            if (trim(s('google_place_id')) === '' || trim(s('google_api_key')) === '') {
+                throw new RuntimeException('احفظ «معرّف المكان» و«مفتاح Google Places API» أولاً.');
+            }
+            google_reviews_clear_cache();
+            $withReviews = s('google_reviews_cards', '0') === '1';
+            $data = google_reviews_fetch(trim(s('google_place_id')), trim(s('google_api_key')), default_lang(), $withReviews);
+            $message = 'نجح الاتصال بـ Google: التقييم ' . $data['rating'] . ' من 5 بناءً على ' . $data['count'] . ' تقييماً';
+            $message .= $withReviews ? '، وجُلب ' . count($data['reviews']) . ' آراء مكتوبة.' : '.';
+            $message .= s('google_reviews_on', '0') === '1' ? ' يظهر الآن في الموقع.' : ' فعّل «عرض تقييم Google الحقيقي» واحفظ ليظهر في الموقع.';
+            flash_set('ok', $message);
         } else {
             if ($postedGroup === 'design' || $postedGroup === 'colors' || $postedGroup === 'visibility') {
                 create_snapshot('تلقائية: قبل تعديل ' . $groups[$postedGroup]);
@@ -87,5 +98,9 @@ echo '<div class="actions" style="margin-top:18px"><button class="btn" type="sub
 if ($group === 'notifications') {
     echo '<form class="card" method="post">' . csrf_field() . '<input type="hidden" name="group" value="notifications"><input type="hidden" name="action" value="test_mail">';
     echo '<h2>تجربة الإرسال</h2><p class="intro">يرسل رسالة تجريبية إلى البريد المحفوظ أعلاه.</p><button class="btn secondary" type="submit">إرسال رسالة تجريبية</button></form>';
+}
+if ($group === 'testimonials') {
+    echo '<form class="card" method="post">' . csrf_field() . '<input type="hidden" name="group" value="testimonials"><input type="hidden" name="action" value="google_test">';
+    echo '<h2>تقييمات Google</h2><p class="intro">يتصل بـ Google الآن بالمفتاح والمعرّف المحفوظين أعلاه ويعرض النتيجة. يحدّث الموقع التقييمات تلقائياً كل 6 ساعات، وGoogle تعطي 5 آراء كحد أقصى وتختار هي أيها يظهر.</p><button class="btn secondary" type="submit">اختبار الاتصال وتحديث التقييمات الآن</button></form>';
 }
 admin_footer();

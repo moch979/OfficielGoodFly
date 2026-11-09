@@ -56,7 +56,7 @@ if ($editId || $isNew) {
         $record = $found;
     }
     echo '<p class="intro">' . h($definition['intro']) . '</p>';
-    echo '<form class="card" method="post" enctype="multipart/form-data">' . csrf_field();
+    echo '<form class="card validate" method="post" enctype="multipart/form-data">' . csrf_field();
     echo '<input type="hidden" name="action" value="save"><input type="hidden" name="id" value="' . (int) $editId . '">';
     if (has_translatable($fields)) {
         echo edit_lang_switch();
@@ -70,14 +70,19 @@ if ($editId || $isNew) {
     exit;
 }
 
-$order = $type === 'filters' ? 'group_key ASC, sort_order ASC, id ASC' : 'sort_order ASC, id ASC';
+$orders = ['filters' => 'group_key ASC, sort_order ASC, id ASC', 'blog' => 'published_at DESC, sort_order ASC, id DESC'];
+$order = $orders[$type] ?? 'sort_order ASC, id ASC';
 $list = rows("SELECT * FROM `{$table}` ORDER BY {$order}");
 $translatableColumns = array_keys(array_filter($fields, static function ($field) {
     return !empty($field['translatable']);
 }));
 
 echo '<p class="intro">' . h($definition['intro']) . '</p>';
-echo '<p><a class="btn" href="' . h($self) . '&new=1">إضافة جديد</a></p>';
+echo '<p class="actions"><a class="btn" href="' . h($self) . '&new=1">إضافة جديد</a>';
+if ($type === 'blog') {
+    echo '<a class="btn ghost" target="_blank" rel="noopener" href="' . h(blog_url()) . '">عرض صفحة المدونة</a><a class="btn ghost" href="settings.php?group=blog">نصوص صفحة المدونة</a>';
+}
+echo '</p>';
 echo '<div class="card" style="overflow:auto"><table><thead><tr>';
 foreach ($definition['list'] as $label) {
     echo '<th>' . h($label) . '</th>';
@@ -112,6 +117,9 @@ foreach ($list as $row) {
     echo '<td>' . h($state) . ($missing ? '<div class="missing">ينقصه: ' . h(implode('، ', $missing)) . '</div>' : '') . '</td>';
     echo '<td class="actions">' . move_buttons((int) $row['id']) . '</td><td class="actions">';
     echo '<a class="btn small secondary" href="' . h($self) . '&edit=' . (int) $row['id'] . '">تعديل</a>';
+    if ($type === 'blog') {
+        echo '<a class="btn small ghost" target="_blank" rel="noopener" href="' . h(blog_url((string) $row['slug'])) . '">الصفحة</a>';
+    }
     echo delete_button((int) $row['id'], 'حذف هذا العنصر؟');
     echo '</td></tr>';
 }

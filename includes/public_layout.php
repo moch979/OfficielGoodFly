@@ -10,10 +10,16 @@ function public_home_url(): string
     return lang_url(current_lang()) . (designer_mode() ? '?designer=1' : '');
 }
 
-/** On pages other than home, "#packages" must point to the home page section. */
+/**
+ * On pages other than home, "#packages" must point to the home page section.
+ * Site pages such as "blog" or "program/<slug>" get the visitor's language prefix.
+ */
 function public_href(string $href, bool $isHome): string
 {
     $href = safe_url($href);
+    if (preg_match('#^(blog|program)(/[a-z0-9\-]+)?/?$#', $href)) {
+        return lang_url(current_lang()) . $href;
+    }
     return !$isHome && strpos($href, '#') === 0 ? lang_url(current_lang()) . $href : $href;
 }
 
@@ -77,7 +83,7 @@ function public_header(array $meta): void
     $logoHeight = max(32, min(96, (int) s('logo_height', '52')));
     $logoAlt = s('logo_alt', 'Good Fly Travel');
     $homeLink = $isHome ? '#hero' : public_home_url();
-    $favicon = s('favicon') !== '' ? asset_url(s('favicon')) : asset_url('assets/img/favicon.svg');
+    $favicon = s('favicon') !== '' ? asset_url(s('favicon')) : '';
     $cssFile = project_root() . '/assets/css/site.css';
     $fonts = array_unique([s('body_font', 'Tajawal'), s('title_font', 'Amiri'), 'Montserrat']);
     $fontQuery = [
@@ -115,7 +121,14 @@ function public_header(array $meta): void
     <meta name="twitter:card" content="summary_large_image">
     <?php endif; ?>
     <meta name="theme-color" content="<?= e('color_green', '#1D3C78') ?>">
+    <?php if ($favicon !== ''): ?>
     <link rel="icon" href="<?= h($favicon) ?>">
+    <link rel="apple-touch-icon" href="<?= h($favicon) ?>">
+    <?php else: ?>
+    <link rel="icon" href="<?= h(asset_url('favicon.ico')) ?>" sizes="16x16 32x32 48x48">
+    <link rel="icon" type="image/png" sizes="192x192" href="<?= h(asset_url('assets/img/favicon-192.png')) ?>">
+    <link rel="apple-touch-icon" href="<?= h(asset_url('assets/img/apple-touch-icon.png')) ?>">
+    <?php endif; ?>
     <?php if (!empty($meta['preloadImage'])): ?>
     <link rel="preload" as="image" href="<?= h($meta['preloadImage']) ?>">
     <?php endif; ?>
@@ -401,12 +414,19 @@ function public_footer(array $app, bool $isHome): void
                         </select>
                     </div>
                 </div>
+                <div x-show="pkgHotels.length" x-cloak>
+                    <label for="bk-hotel" class="block text-xs font-bold text-brand-green mb-1"><?= e('modal_hotel_label') ?></label>
+                    <select id="bk-hotel" x-model="formData.hotelId" @change="chooseHotel()" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:border-brand-gold">
+                        <option value="" x-show="pkgHotels.length > 1"><?= e('modal_hotel_any') ?></option>
+                        <template x-for="hotel in pkgHotels" :key="hotel.id"><option :value="String(hotel.id)" x-text="hotel.label"></option></template>
+                    </select>
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" x-show="pkgDepartures.length || pkgRooms.length" x-cloak>
                     <div x-show="pkgDepartures.length">
                         <label for="bk-departure" class="block text-xs font-bold text-brand-green mb-1"><?= e('modal_departure_label') ?></label>
                         <select id="bk-departure" x-model="formData.departureId" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-xs focus:outline-none focus:border-brand-gold">
                             <option value=""><?= e('modal_departure_other') ?></option>
-                            <template x-for="d in pkgDepartures" :key="d.id"><option :value="String(d.id)" :disabled="d.seats < 1" x-text="d.label + ' — ' + d.seatsText"></option></template>
+                            <template x-for="d in pkgDepartures" :key="d.id"><option :value="String(d.id)" :disabled="d.full" x-text="d.label + ' — ' + d.seatsText"></option></template>
                         </select>
                     </div>
                     <div x-show="pkgRooms.length">

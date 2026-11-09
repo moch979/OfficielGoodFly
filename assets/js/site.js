@@ -36,7 +36,7 @@ function goodFlyApp() {
         quickFilter: { type: 'all', hotel: 'all', duration: 'all' },
         today: new Date().toISOString().slice(0, 10),
         calc: { tier: cfg.calcTier, days: cfg.calcDays, people: cfg.calcPeople, totalPrice: '0' },
-        formData: { name: '', phone: '', tripType: '', travelers: 2, date: '', notes: '', website: '', packageId: '', departureId: '', roomType: '' },
+        formData: { name: '', phone: '', tripType: '', travelers: 2, date: '', notes: '', website: '', packageId: '', departureId: '', hotelId: '', roomType: '' },
 
         initApp() {
             if (!this.formData.tripType && this.bookingTypes.length) {
@@ -73,8 +73,16 @@ function goodFlyApp() {
         get pkgDepartures() {
             return this.selectedPackage && this.selectedPackage.departures ? this.selectedPackage.departures : [];
         },
+        get pkgHotels() {
+            return this.selectedPackage && this.selectedPackage.hotels ? this.selectedPackage.hotels : [];
+        },
         get pkgRooms() {
-            return this.selectedPackage && this.selectedPackage.rooms ? this.selectedPackage.rooms : [];
+            const hotel = this.pkgHotels.find((h) => String(h.id) === String(this.formData.hotelId));
+            return hotel ? hotel.rooms : [];
+        },
+        chooseHotel() {
+            const rooms = this.pkgRooms;
+            if (!rooms.some((r) => r.type === this.formData.roomType)) this.formData.roomType = rooms.length === 1 ? rooms[0].type : '';
         },
         get estimateText() {
             const room = this.pkgRooms.find((r) => r.type === this.formData.roomType);
@@ -106,6 +114,7 @@ function goodFlyApp() {
             this.formError = '';
             this.bookedWhatsapp = '';
             this.formData.departureId = '';
+            this.formData.hotelId = '';
             this.formData.roomType = '';
         },
         openConsultationModal() {
@@ -114,19 +123,25 @@ function goodFlyApp() {
             this.formData.packageId = '';
             this.modalOpen = true;
         },
-        openPackageModal(pkg, departureId) {
+        openPackageModal(pkg, departureId, hotelId) {
             this.resetBooking();
             this.selectedPackage = pkg;
             this.formData.packageId = pkg.id;
             this.formData.tripType = pkg.title;
             if (departureId) this.formData.departureId = String(departureId);
-            const rooms = pkg.rooms || [];
-            if (rooms.length === 1) this.formData.roomType = rooms[0].type;
+            const hotels = pkg.hotels || [];
+            if (hotelId) this.formData.hotelId = String(hotelId);
+            else if (hotels.length === 1) this.formData.hotelId = String(hotels[0].id);
+            this.chooseHotel();
             this.modalOpen = true;
+            this.$nextTick(() => {
+                const select = document.getElementById('bk-type');
+                if (select) select.value = this.formData.tripType;
+            });
         },
-        openPackageById(id, departureId) {
+        openPackageById(id, departureId, hotelId) {
             const pkg = this.packages.find((item) => item.id === id);
-            if (pkg) this.openPackageModal(pkg, departureId);
+            if (pkg) this.openPackageModal(pkg, departureId, hotelId);
         },
         openConsultationWithCalc() {
             this.openConsultationModal();

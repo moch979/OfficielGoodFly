@@ -3,6 +3,7 @@
 require __DIR__ . '/_init.php';
 require __DIR__ . '/_layout.php';
 
+$rejected = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
     $action = (string) ($_POST['action'] ?? '');
@@ -23,21 +24,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('packages.php?edit=' . $newId);
         }
     } catch (Throwable $e) {
-        flash_set('err', $e->getMessage());
-        if ($action === 'save') {
-            redirect('packages.php' . ($id ? '?edit=' . $id : '?new=1'));
+        if ($action !== 'save') {
+            flash_set('err', $e->getMessage());
+            redirect('packages.php');
         }
+        if (!$e instanceof RuntimeException) {
+            log_error('package save: ' . $e->getMessage());
+        }
+        flash_set('err', ($e instanceof RuntimeException ? $e->getMessage() : 'حدث خطأ غير متوقع أثناء الحفظ.') . ' لم يُحفظ البرنامج، وما كتبته ما زال في النموذج.');
+        $rejected = package_record_from_post($_POST, $id ? package_record($id) : null);
+        $rejected['id'] = $id;
     }
-    redirect('packages.php');
+    if ($rejected === null) {
+        redirect('packages.php');
+    }
 }
 
 $fields = package_fields();
-$editId = (int) ($_GET['edit'] ?? 0);
-$isNew = isset($_GET['new']);
+$editId = $rejected !== null ? (int) $rejected['id'] : (int) ($_GET['edit'] ?? 0);
+$isNew = $rejected !== null || isset($_GET['new']);
 admin_header('برامج الحج والعمرة', 'packages.php');
 
 if ($editId || $isNew) {
-    $package = $editId ? package_record($editId) : blank_record($fields);
+    $package = $rejected ?? ($editId ? package_record($editId) : blank_record($fields));
     if (!$package) {
         echo '<p>البرنامج غير موجود.</p>';
         admin_footer();
@@ -51,7 +60,8 @@ if ($editId || $isNew) {
         }
         echo '</p>';
     }
-    echo '<form class="card" method="post" enctype="multipart/form-data">' . csrf_field();
+    echo '<p class="hint">الحقول المعلّمة بـ <span class="req">*</span> مطلوبة، ولا يُحفظ البرنامج حتى تُملأ.</p>';
+    echo '<form class="card validate" method="post" enctype="multipart/form-data">' . csrf_field();
     echo '<input type="hidden" name="action" value="save"><input type="hidden" name="id" value="' . (int) ($package['id'] ?? 0) . '">';
     echo edit_lang_switch();
     foreach ($fields as $name => $field) {
@@ -66,6 +76,7 @@ echo '<p class="intro">أضف أو عدّل أو أخفِ أي برنامج. ا�
 echo '<p><a class="btn" href="packages.php?new=1">إضافة برنامج</a></p>';
 $list = rows('SELECT p.*, c.label AS category_label FROM packages p LEFT JOIN package_categories c ON c.slug = p.category ORDER BY p.sort_order, p.id');
 $departures = upcoming_departures(array_column($list, 'id'));
+$hotels = package_hotels(array_column($list, 'id'));
 echo '<div class="card" style="overflow:auto"><table><thead><tr><th>الصورة</th><th>البرنامج</th><th>السعر</th><th>التصنيف</th><th>المواعيد القادمة</th><th>الحالة</th><th>الترتيب</th><th></th></tr></thead><tbody>';
 foreach ($list as $row) {
     $missing = [];
@@ -77,9 +88,10 @@ foreach ($list as $row) {
     echo '<tr><td><img class="thumb" alt="" src="' . h(asset_url($row['image'])) . '"></td>';
     echo '<td>' . h($row['title']) . ($missing ? '<div class="missing">ينقصه: ' . h(implode('، ', $missing)) . '</div>' : '') . '</td>';
     $upcoming = $departures[(int) $row['id']] ?? [];
-    $seats = array_sum(array_column($upcoming, 'seats'));
-    echo '<td>' . h(display_price($row)) . '</td><td>' . h($row['category_label'] ?? $row['category']) . '</td>';
-    echo '<td>' . ($upcoming ? count($upcoming) . ' موعد، ' . $seats . ' مقعد' : '<span class="hint">لا يوجد</span>') . '</td>';
+    $tracked = array_filter(array_column($upcoming, 'seats'), 'is_int');
+    $hotelCount = count($hotels[(int) $row['id']] ?? []);
+    echo '<td>' . h(display_price($row, $hotels[(int) $row['id']] ?? [])) . '<div class="hint">' . ($hotelCount ? $hotelCount . ' خيار فندق' : 'بلا فنادق') . '</div></td><td>' . h($row['category_label'] ?? $row['category']) . '</td>';
+    echo '<td>' . ($upcoming ? count($upcoming) . ' موعد' . ($tracked ? '، ' . array_sum($tracked) . ' مقعد' : '') : '<span class="hint">لا يوجد</span>') . '</td>';
     echo '<td>' . ((int) $row['is_active'] === 1 ? 'ظاهر' : 'مخفي') . '</td>';
     echo '<td class="actions">' . move_buttons((int) $row['id']) . '</td><td class="actions">';
     echo '<a class="btn small secondary" href="packages.php?edit=' . (int) $row['id'] . '">تعديل</a>';

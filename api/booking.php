@@ -52,6 +52,8 @@ $travelers = max(1, min(99, $travelers));
 $packageId = null;
 $departureId = null;
 $departureDate = '';
+$hotelId = null;
+$hotelLabel = '';
 $roomType = '';
 $roomPrice = 0;
 $requestedPackage = (int) ($payload['packageId'] ?? 0);
@@ -63,11 +65,21 @@ if ($requestedPackage > 0) {
         $packageId = (int) $package['id'];
         $packageTitle = $package['title'];
 
-        $requestedRoom = $text('roomType');
-        $prices = room_prices($package);
-        if ($requestedRoom !== '' && isset($prices[$requestedRoom])) {
-            $roomType = $requestedRoom;
-            $roomPrice = $prices[$requestedRoom];
+        $requestedHotel = (int) ($payload['hotelId'] ?? 0);
+        if ($requestedHotel > 0) {
+            $statement = db()->prepare('SELECT * FROM package_hotels WHERE id = ? AND package_id = ?');
+            $statement->execute([$requestedHotel, $packageId]);
+            $hotel = $statement->fetch();
+            if ($hotel) {
+                $hotelId = (int) $hotel['id'];
+                $hotelLabel = str_limit(admin_hotel_label($hotel), 255);
+                $prices = room_prices($hotel);
+                $requestedRoom = $text('roomType');
+                if ($requestedRoom !== '' && isset($prices[$requestedRoom])) {
+                    $roomType = $requestedRoom;
+                    $roomPrice = $prices[$requestedRoom];
+                }
+            }
         }
 
         $requestedDeparture = (int) ($payload['departureId'] ?? 0);
@@ -78,7 +90,7 @@ if ($requestedPackage > 0) {
             if (!$departure) {
                 json_response(['ok' => false, 'message' => t('departure_invalid')], 422);
             }
-            if ((int) $departure['seats_left'] < $travelers) {
+            if ($departure['seats_left'] !== null && (int) $departure['seats_left'] < $travelers) {
                 json_response(['ok' => false, 'message' => t('seats_not_enough')], 422);
             }
             $departureId = (int) $departure['id'];
@@ -88,11 +100,11 @@ if ($requestedPackage > 0) {
     }
 }
 
-$statement = db()->prepare('INSERT INTO bookings (full_name, phone, trip_type, travelers, travel_date, notes, package_title, lang, package_id, departure_id, departure_date, room_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-$statement->execute([$name, $phone, $tripType, $travelers, $date, $notes, $packageTitle, current_lang(), $packageId, $departureId, $departureDate, $roomType]);
+$statement = db()->prepare('INSERT INTO bookings (full_name, phone, trip_type, travelers, travel_date, notes, package_title, lang, package_id, departure_id, departure_date, hotel_id, hotel_label, room_type, room_price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+$statement->execute([$name, $phone, $tripType, $travelers, $date, $notes, $packageTitle, current_lang(), $packageId, $departureId, $departureDate, $hotelId, $hotelLabel, $roomType, $roomPrice]);
 $bookingId = (int) db()->lastInsertId();
 
-$roomNames = ['double' => 'ثنائية', 'triple' => 'ثلاثية', 'quad' => 'رباعية'];
+$roomNames = admin_room_names();
 $lines = [
     s('wa_booking_intro', 'طلب جديد من موقع Good Fly Travel:'),
     'الاسم: ' . $name,
@@ -103,6 +115,9 @@ $lines = [
 ];
 if ($packageTitle !== '') {
     $lines[] = 'البرنامج: ' . $packageTitle;
+}
+if ($hotelLabel !== '') {
+    $lines[] = 'الفندق: ' . $hotelLabel;
 }
 if ($roomType !== '') {
     $lines[] = 'الغرفة: ' . $roomNames[$roomType] . ' — التقدير: ' . number_format($roomPrice * $travelers) . ' درهم';

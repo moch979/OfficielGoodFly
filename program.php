@@ -39,7 +39,11 @@ if (!$program) {
 
 $row = $program['row'];
 $booking = $program['booking'];
-$rooms = $program['rooms'];
+$hotels = $program['hotels'];
+$priceRange = hotels_price_range($hotels);
+$roomTypes = hotel_room_types($hotels);
+$hasMadinah = (bool) array_filter(array_column($hotels, 'madinah_hotel'), 'strlen');
+$hasMakkah = (bool) array_filter(array_column($hotels, 'makkah_hotel'), 'strlen');
 $jsonLd = [
     '@context' => 'https://schema.org',
     '@type' => 'TouristTrip',
@@ -49,8 +53,8 @@ $jsonLd = [
     'url' => program_absolute_url($slug),
     'provider' => ['@type' => 'TravelAgency', 'name' => agency_name(), 'url' => site_url() . '/'],
 ];
-if ($rooms) {
-    $jsonLd['offers'] = ['@type' => 'AggregateOffer', 'priceCurrency' => 'MAD', 'lowPrice' => min($rooms), 'highPrice' => max($rooms)];
+if ($priceRange) {
+    $jsonLd['offers'] = ['@type' => 'AggregateOffer', 'priceCurrency' => 'MAD', 'lowPrice' => $priceRange[0], 'highPrice' => $priceRange[1], 'offerCount' => count($hotels)];
 }
 if ($program['itinerary']) {
     $jsonLd['itinerary'] = ['@type' => 'ItemList', 'itemListElement' => array_map(static function ($day, $index) {
@@ -115,6 +119,45 @@ public_header([
                     <?php endif; ?>
                 </section>
 
+                <?php if ($hotels): ?>
+                <section id="hotels" aria-labelledby="hotels-title" class="scroll-mt-24">
+                    <h2 id="hotels-title" class="font-serif-title text-3xl font-bold text-brand-green mb-6"><?= e('prog_hotels_title') ?></h2>
+                    <div class="overflow-x-auto rounded-2xl border border-brand-gold/30 bg-white shadow-lux">
+                        <table class="w-full min-w-[640px] text-sm">
+                            <thead class="bg-brand-darkgreen text-white text-xs">
+                                <tr>
+                                    <?php if ($hasMadinah): ?><th scope="col" class="px-4 py-3 text-start font-bold"><?= e('prog_madinah') ?></th><?php endif; ?>
+                                    <?php if ($hasMakkah): ?><th scope="col" class="px-4 py-3 text-start font-bold"><?= e('prog_makkah') ?></th><?php endif; ?>
+                                    <?php foreach ($roomTypes as $type): ?><th scope="col" class="px-3 py-3 text-center font-bold text-brand-gold"><?= h(room_labels()[$type]) ?></th><?php endforeach; ?>
+                                    <th scope="col" class="px-3 py-3"><span class="sr-only"><?= e('pkg_button') ?></span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <?php foreach ($hotels as $hotel): ?>
+                                <tr class="align-top">
+                                    <?php if ($hasMadinah): ?>
+                                    <td class="px-4 py-4 font-bold text-brand-green"><?= h($hotel['madinah_hotel'] !== '' ? $hotel['madinah_hotel'] : '—') ?></td>
+                                    <?php endif; ?>
+                                    <?php if ($hasMakkah): ?>
+                                    <td class="px-4 py-4">
+                                        <div class="font-bold text-brand-green"><?= h($hotel['makkah_hotel'] !== '' ? $hotel['makkah_hotel'] : '—') ?></div>
+                                        <?php if ($hotel['makkah_note'] !== ''): ?><div class="text-[11px] text-gray-500 mt-1"><i class="fa-solid fa-location-dot text-brand-gold me-1" aria-hidden="true"></i><?= h($hotel['makkah_note']) ?></div><?php endif; ?>
+                                        <?php if ($hotel['meals'] !== ''): ?><div class="text-[11px] text-emerald-700 mt-1"><i class="fa-solid fa-utensils me-1" aria-hidden="true"></i><?= h($hotel['meals']) ?></div><?php endif; ?>
+                                    </td>
+                                    <?php endif; ?>
+                                    <?php foreach ($roomTypes as $type): ?>
+                                    <td class="px-3 py-4 text-center whitespace-nowrap <?= isset($hotel['prices'][$type]) ? 'font-bold text-brand-green' : 'text-gray-400' ?>"><?= isset($hotel['prices'][$type]) ? h(money($hotel['prices'][$type])) : '—' ?></td>
+                                    <?php endforeach; ?>
+                                    <td class="px-3 py-4 text-end"><button type="button" @click="openPackageById(<?= (int) $row['id'] ?>, null, <?= (int) $hotel['id'] ?>)" class="gold-bg-gradient text-brand-darkgreen font-bold text-xs px-4 py-2 rounded-full whitespace-nowrap"><?= e('pkg_button') ?></button></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3"><?= e('prog_hotels_note') ?></p>
+                </section>
+                <?php endif; ?>
+
                 <?php if ($program['itinerary']): ?>
                 <section aria-labelledby="itinerary-title">
                     <h2 id="itinerary-title" class="font-serif-title text-3xl font-bold text-brand-green mb-6"><?= e('prog_itinerary_title') ?></h2>
@@ -175,39 +218,28 @@ public_header([
             </div>
 
             <aside class="space-y-6 lg:sticky lg:top-28 self-start">
-                <?php if ($rooms): ?>
-                <div class="bg-white rounded-2xl shadow-lux border border-brand-gold/30 p-6">
-                    <h2 class="font-bold text-lg text-brand-green mb-4"><?= e('prog_rooms_title') ?></h2>
-                    <ul class="divide-y divide-gray-100">
-                        <?php foreach ($rooms as $type => $price): ?>
-                        <li class="flex items-center justify-between py-3 text-sm">
-                            <span class="text-brand-slate"><?= h(room_labels()[$type]) ?></span>
-                            <span class="text-end"><strong class="text-brand-green text-base"><?= h(money($price)) ?></strong> <span class="text-[11px] text-gray-500"><?= e('prog_per_person') ?></span></span>
-                        </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-                <?php endif; ?>
-
-                <div class="bg-white rounded-2xl shadow-lux border border-brand-gold/30 p-6">
+                <div id="departures" class="bg-white rounded-2xl shadow-lux border border-brand-gold/30 p-6 scroll-mt-24">
                     <h2 class="font-bold text-lg text-brand-green mb-4"><?= e('prog_departures_title') ?></h2>
                     <?php if ($program['departures']): ?>
-                    <ul class="space-y-3">
-                        <?php foreach ($program['departures'] as $departure): $full = $departure['seats'] < 1; ?>
-                        <li class="rounded-xl border <?= $full ? 'border-gray-200 bg-gray-50' : 'border-brand-gold/40' ?> p-4">
-                            <div class="font-bold text-sm text-brand-green"><i class="fa-regular fa-calendar text-brand-gold me-2" aria-hidden="true"></i><?= h(format_day($departure['date'])) ?></div>
-                            <?php if ($departure['return'] !== ''): ?>
-                            <div class="text-xs text-gray-500 mt-1"><?= e('prog_return_label') ?>: <?= h(format_day($departure['return'])) ?></div>
-                            <?php endif; ?>
-                            <div class="flex items-center justify-between gap-3 mt-3">
-                                <span class="text-xs font-bold <?= $full ? 'text-red-700' : ($departure['seats'] <= 5 ? 'text-amber-700' : 'text-emerald-700') ?>"><?= h(seats_text($departure['seats'])) ?></span>
-                                <?php if (!$full): ?>
-                                <button type="button" @click="openPackageById(<?= (int) $row['id'] ?>, <?= (int) $departure['id'] ?>)" class="gold-bg-gradient text-brand-darkgreen font-bold text-xs px-4 py-2 rounded-full"><?= e('pkg_button') ?></button>
+                    <?php foreach (array_values(departures_by_month($program['departures'])) as $monthIndex => $month): ?>
+                    <h3 class="text-xs font-bold text-brand-gold uppercase tracking-wider mb-2<?= $monthIndex > 0 ? ' mt-5' : '' ?>"><?= h($month['label']) ?></h3>
+                    <ul class="space-y-2">
+                        <?php foreach ($month['items'] as $departure): $full = departure_full($departure); ?>
+                        <li class="rounded-xl border <?= $full ? 'border-gray-200 bg-gray-50' : 'border-brand-gold/40' ?> px-4 py-3 flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="font-bold text-sm text-brand-green"><i class="fa-regular fa-calendar text-brand-gold me-2" aria-hidden="true"></i><?= h(format_day($departure['date'])) ?></div>
+                                <?php if ($departure['return'] !== ''): ?>
+                                <div class="text-[11px] text-gray-500 mt-0.5"><?= e('prog_return_label') ?>: <?= h(format_day($departure['return'])) ?></div>
                                 <?php endif; ?>
+                                <div class="text-[11px] font-bold mt-0.5 <?= $full ? 'text-red-700' : ($departure['seats'] !== null && $departure['seats'] <= 5 ? 'text-amber-700' : 'text-emerald-700') ?>"><?= h(seats_text($departure['seats'])) ?></div>
                             </div>
+                            <?php if (!$full): ?>
+                            <button type="button" @click="openPackageById(<?= (int) $row['id'] ?>, <?= (int) $departure['id'] ?>)" class="shrink-0 gold-bg-gradient text-brand-darkgreen font-bold text-xs px-4 py-2 rounded-full"><?= e('pkg_button') ?></button>
+                            <?php endif; ?>
                         </li>
                         <?php endforeach; ?>
                     </ul>
+                    <?php endforeach; ?>
                     <?php else: ?>
                     <p class="text-sm text-brand-slate"><?= e('prog_no_departures') ?></p>
                     <?php endif; ?>

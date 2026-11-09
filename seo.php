@@ -28,6 +28,17 @@ if (($_GET['file'] ?? '') === 'sitemap') {
             echo '  </url>', "\n";
         }
     }
+    $blogPages = array_merge([''], array_column(rows('SELECT slug FROM blog_posts WHERE is_active = 1 AND published_at <= CURDATE() ORDER BY published_at DESC, id DESC'), 'slug'));
+    foreach ($blogPages as $slug) {
+        foreach (languages() as $code => $info) {
+            echo '  <url>', "\n";
+            echo '    <loc>', h(blog_absolute_url($slug, $code)), '</loc>', "\n";
+            foreach (languages() as $alt => $altInfo) {
+                echo '    <xhtml:link rel="alternate" hreflang="', h($alt), '" href="', h(blog_absolute_url($slug, $alt)), '"/>', "\n";
+            }
+            echo '  </url>', "\n";
+        }
+    }
     echo '</urlset>', "\n";
     exit;
 }

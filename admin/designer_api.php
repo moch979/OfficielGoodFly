@@ -62,7 +62,7 @@ function public_values(array $record, array $fields): array
             $values[$name] = (int) ($record[$name] ?? 0) === 1 ? 1 : 0;
             continue;
         }
-        if ($type === 'departures') {
+        if ($type === 'departures' || $type === 'hotels') {
             $values[$name] = array_values((array) ($record[$name] ?? []));
             continue;
         }

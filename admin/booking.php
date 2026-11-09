@@ -21,6 +21,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $message = 'تم تحديث حالة الطلب.';
     $departureId = (int) $booking['departure_id'];
+    if ($departureId > 0 && (int) $booking['seats_deducted'] === 0) {
+        $tracked = db()->prepare('SELECT seats_left IS NOT NULL FROM package_departures WHERE id = ?');
+        $tracked->execute([$departureId]);
+        if ((int) $tracked->fetchColumn() !== 1) {
+            $departureId = 0;
+        }
+    }
     db()->beginTransaction();
     try {
         db()->prepare('UPDATE bookings SET status = ? WHERE id = ?')->execute([$status, $id]);
@@ -45,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $package = null;
 if ((int) $booking['package_id'] > 0) {
-    $statement = db()->prepare('SELECT id, slug, title, price_double, price_triple, price_quad FROM packages WHERE id = ?');
+    $statement = db()->prepare('SELECT id, slug, title FROM packages WHERE id = ?');
     $statement->execute([(int) $booking['package_id']]);
     $package = $statement->fetch() ?: null;
 }
@@ -55,7 +62,7 @@ if ((int) $booking['departure_id'] > 0) {
     $statement->execute([(int) $booking['departure_id']]);
     $seatsLeft = $statement->fetchColumn();
 }
-$roomNames = ['double' => 'ثنائية', 'triple' => 'ثلاثية', 'quad' => 'رباعية'];
+$roomNames = admin_room_names();
 $phoneDigits = preg_replace('/\D+/', '', $booking['phone']);
 
 admin_header('طلب رقم ' . $id, 'bookings.php');
@@ -73,18 +80,21 @@ echo '</p>';
 echo '<p><strong>عدد المسافرين:</strong> ' . h($booking['travelers']) . '</p>';
 if ($booking['departure_date'] !== '') {
     echo '<p><strong>موعد الانطلاق:</strong> <span dir="ltr">' . h($booking['departure_date']) . '</span>';
-    if ($seatsLeft !== null && $seatsLeft !== false) {
+    if ($seatsLeft !== null && $seatsLeft !== false && $seatsLeft !== '') {
         echo ' <span class="hint">(المقاعد المتبقية الآن: ' . (int) $seatsLeft . ')</span>';
     }
     echo '</p>';
 } else {
     echo '<p><strong>تاريخ السفر المطلوب:</strong> ' . h($booking['travel_date'] ?: '-') . '</p>';
 }
+if ($booking['hotel_label'] !== '') {
+    echo '<p><strong>الفندق:</strong> ' . h($booking['hotel_label']) . '</p>';
+}
 if ($booking['room_type'] !== '') {
-    $price = $package ? (int) $package['price_' . $booking['room_type']] : 0;
+    $price = (int) $booking['room_price'];
     echo '<p><strong>نوع الغرفة:</strong> ' . h($roomNames[$booking['room_type']] ?? $booking['room_type']);
     if ($price > 0) {
-        echo ' — التقدير بالسعر الحالي: <strong>' . number_format($price * (int) $booking['travelers']) . ' درهم</strong>';
+        echo ' — ' . number_format($price) . ' درهم للشخص، التقدير: <strong>' . number_format($price * (int) $booking['travelers']) . ' درهم</strong> <span class="hint">(بالسعر وقت الطلب)</span>';
     }
     echo '</p>';
 }
@@ -97,7 +107,7 @@ foreach ($labels as $value => $label) {
     echo '<option value="' . h($value) . '"' . $selected . '>' . h($label) . '</option>';
 }
 echo '</select>';
-if ((int) $booking['departure_id'] > 0) {
+if ((int) $booking['departure_id'] > 0 && ($seatsLeft !== null && $seatsLeft !== false || (int) $booking['seats_deducted'] === 1)) {
     echo '<div class="hint">' . ((int) $booking['seats_deducted'] === 1 ? 'مقاعد هذا الطلب مخصومة من الموعد. تغيير الحالة من «مؤكد» يعيدها.' : 'اختيار «مؤكد» يخصم مقاعد هذا الطلب من الموعد تلقائياً.') . '</div>';
 }
 echo '<div style="margin-top:14px" class="actions"><button class="btn">حفظ الحالة</button><a class="btn ghost" href="bookings.php">كل الطلبات</a></div></form></div>';

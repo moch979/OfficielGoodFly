@@ -40,7 +40,7 @@ if ($editId || $isNew) {
         exit;
     }
     echo '<p class="intro">كل وجهة تبويب مستقل بصورته ومميزاته. أسطر الأيقونات تقابل أسطر المميزات بالترتيب.</p>';
-    echo '<form class="card" method="post" enctype="multipart/form-data">' . csrf_field();
+    echo '<form class="card validate" method="post" enctype="multipart/form-data">' . csrf_field();
     echo '<input type="hidden" name="action" value="save"><input type="hidden" name="id" value="' . (int) ($city['id'] ?? 0) . '">';
     echo edit_lang_switch();
     foreach ($fields as $name => $field) {

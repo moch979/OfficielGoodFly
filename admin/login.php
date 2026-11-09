@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
     <title>دخول الإدارة | Good Fly</title>
-    <link rel="icon" href="../assets/img/favicon.svg">
+    <link rel="icon" href="../favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
     <style>
         body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0F2350;font-family:Tajawal,Tahoma,sans-serif;color:#1D3C78}

@@ -125,6 +125,13 @@ function t(string $key): string
         'not_found_title' => ['ar' => 'البرنامج غير موجود', 'fr' => 'Programme introuvable', 'en' => 'Package not found'],
         'not_found_text' => ['ar' => 'ربما انتهى هذا البرنامج أو تغيّر رابطه. تصفح برامجنا الحالية.', 'fr' => 'Ce programme est peut-être terminé ou son lien a changé. Découvrez nos programmes actuels.', 'en' => 'This package may have ended or its link changed. Browse our current packages.'],
         'departure_invalid' => ['ar' => 'موعد الانطلاق المختار غير متاح.', 'fr' => 'La date de départ choisie n’est pas disponible.', 'en' => 'The selected departure is not available.'],
+        'google_rating' => ['ar' => 'تقييمنا على Google', 'fr' => 'Notre note sur Google', 'en' => 'Our Google rating'],
+        'google_based_on' => ['ar' => 'بناءً على %d تقييم', 'fr' => 'Sur la base de %d avis', 'en' => 'Based on %d reviews'],
+        'google_write' => ['ar' => 'اكتب تقييمك على Google', 'fr' => 'Laisser un avis sur Google', 'en' => 'Write a review on Google'],
+        'google_all' => ['ar' => 'كل التقييمات', 'fr' => 'Voir tous les avis', 'en' => 'See all reviews'],
+        'google_posted_on' => ['ar' => 'منشور على Google', 'fr' => 'Publié sur Google', 'en' => 'Posted on Google'],
+        'read_more' => ['ar' => 'اقرأ المزيد', 'fr' => 'Lire la suite', 'en' => 'Read more'],
+        'read_less' => ['ar' => 'عرض أقل', 'fr' => 'Réduire', 'en' => 'Show less'],
         'seats_not_enough' => ['ar' => 'المقاعد المتبقية في هذا الموعد أقل من عدد المسافرين.', 'fr' => 'Il reste moins de places que de voyageurs pour cette date.', 'en' => 'There are fewer seats left on this departure than travellers.'],
     ];
     $lang = current_lang();

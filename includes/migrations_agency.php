@@ -43,3 +43,19 @@ function migrate_agency_info(PDO $pdo): void
         $move->execute([$label, $hint, $order, $key]);
     }
 }
+
+function migrate_google_reviews(PDO $pdo): void
+{
+    mig_setting($pdo, 'google_reviews_on', '0', 'testimonials', 'عرض تقييم Google الحقيقي', 'bool', 'عند التفعيل تظهر فوق الآراء بطاقة فيها تقييم الوكالة على Google وعدد التقييمات وزر «اكتب تقييمك على Google».', 20);
+    mig_setting($pdo, 'google_place_id', 'ChIJf1ZU0EBrpw0RXqlpdm1_3bg', 'testimonials', 'معرّف المكان على Google (Place ID)', 'text', 'يبدأ غالباً بـ ChIJ. ابحث عن اسم وكالتك في: developers.google.com/maps/documentation/places/web-service/place-id', 21);
+    mig_setting($pdo, 'google_api_key', '', 'testimonials', 'مفتاح Google Places API', 'password', 'من Google Cloud Console: فعّل «Places API (New)» وأنشئ مفتاحاً. قيّده بعنوان IP الخادم وبـ Places API فقط. يُحفظ ولا يظهر للزوار.', 22);
+}
+
+function migrate_google_reviews_cards(PDO $pdo): void
+{
+    mig_setting($pdo, 'google_reviews_cards', '0', 'testimonials', 'عرض نصوص آراء Google أيضاً', 'bool', 'عند الإيقاف تظهر تحت بطاقة التقييم الآراء التي تضيفها بنفسك من «آراء العملاء». عند التفعيل تحل محلها آخر 5 آراء تختارها Google وتظهر كما هي، ولا يمكن إخفاء أي منها.', 23);
+    $pdo->prepare("UPDATE settings SET label = ?, hint = ? WHERE skey = 'google_reviews_on'")->execute([
+        'عرض تقييم Google الحقيقي',
+        'عند التفعيل تظهر فوق الآراء بطاقة فيها تقييم الوكالة على Google وعدد التقييمات وزر «اكتب تقييمك على Google».',
+    ]);
+}
